@@ -1,0 +1,9 @@
+<return xmlns='http://exchangenetwork.net/schemas/validator/1.1/validatorEx.xsd'>
+  <transactionId>_82f77cf5-a4eb-4ec0-a43f-6b5fb036178d</transactionId>
+  <validationType>schema</validationType>
+  <processStatus>Finished</processStatus>
+  <documentStatus>Valid</documentStatus>
+  <timeStamp>2015-07-09T15:10:48Z</timeStamp>
+  <results>Congratulations! The document,d:\SOAPServer\DataFolder\_82f77cf5-a4eb-4ec0-a43f-6b5fb036178d0.unzipped\7fb43d1e-11b0-4b95-a607-65e689b3b9731384812363056227047.tmp, is valid according to the schema.
+</results>
+</return>

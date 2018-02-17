@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# allow X11 access
+xhost +local:docker
+
+# start emacs
+docker run \
+      -d \
+      -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
+      -v ${PWD}:/project \
+      -e DISPLAY=unix${DISPLAY} \
+      -p 18080:18080 \
+      --device /dev/snd \
+      --name xmltool-emacs \
+      cmiles74/docker-emacs-js-clojure
