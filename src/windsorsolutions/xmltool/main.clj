@@ -9,6 +9,7 @@
    [taoensso.timbre.profiling :as profiling
     :refer (pspy pspy* profile defnp p p*)]
    [slingshot.slingshot :only [throw+ try+]]
+   [windsorsolutions.xmltool.jfx :as jfx]
    [windsorsolutions.xmltool.xmltool :as xmltool]))
 
 (defn main
@@ -16,7 +17,7 @@
   [& args]
 
   ;; ensure that the JavaFX environment has been initialized
-  (defonce force-toolkit-init (javafx.embed.swing.JFXPanel.))
+  (jfx/init)
 
   (println "Hello from XMLTool!")
   (xmltool/new-window))

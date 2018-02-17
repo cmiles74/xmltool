@@ -10,20 +10,12 @@
                  spy get-env log-env)]
    [taoensso.timbre.profiling :as profiling
     :refer (pspy pspy* profile defnp p p*)]
-   [slingshot.slingshot :only [throw+ try+]])
+   [slingshot.slingshot :only [throw+ try+]]
+   [windsorsolutions.xmltool.jfx :as jfx])
   (:import
    [javax.xml.parsers SAXParserFactory SAXParser]
    [org.xml.sax ErrorHandler]
-   [clojure.lang XMLHandler]
-   [javafx.beans.property ReadOnlyStringWrapper]
-   [javafx.application Application Platform]
-   [javafx.scene Group Scene]
-   [javafx.scene.control Label TreeTableView TreeTableColumn TreeView TreeItem]
-   [javafx.scene.layout BorderPane VBox]
-   [javafx.scene.text Font]
-   [javafx.stage StageBuilder Stage]
-   [javafx.geometry Insets]
-   [javafx.util Callback]))
+   [clojure.lang XMLHandler]))
 
 (defn sax-parser-content-handler
   [content-handler]
@@ -46,20 +38,6 @@
   [file-path]
   (xml/parse (io/input-stream file-path) startparse-sax-non-validating))
 
-(defmacro jfx-run
-  "Invokes the provided body in the context of the JavaFX application thread."
-  [& body]
-  `(if (Platform/isFxApplicationThread)
-     (try ~@body
-          (catch Exception exception#
-            (timbre/warn "Exception in JFX Application thread: " exception#)
-            (timbre/debug exception#)))
-     (Platform/runLater (fn []
-                          (try ~@body
-                               (catch Exception exception#
-                                 (timbre/warn "Exception in JFX Application thread: " exception#)
-                                 (timbre/debug exception#)))))))
-
 (defprotocol tree-node-protocol
   "Protocol all of our tree nodes must implement"
   (getName [node])
@@ -75,21 +53,19 @@
   "Builds a sub-tree of attribute values and adds them to the tree node."
   [parent attrs]
   (if (not (nil? attrs))
-    (let [attr-node (TreeItem. (tree-node. "Attributes" nil))]
-      (jfx-run
-       (.add (.getChildren parent) attr-node))
-      (jfx-run
-       (.addAll (.getChildren attr-node)
-                (map #(TreeItem. (tree-node. (name (key %1)) (val %1))) attrs))))))
+    (let [attr-node (jfx/tree-item (tree-node. "Attributes" nil) parent)]
+      (jfx/add-leaves
+       attr-node
+       (map #(jfx/tree-item (tree-node. (name (key %1)) (val %1))) attrs)))))
 
 (defn build-tree-item
   "Builds a new tree item with the provided key and value and then adds it to
   the provided parent tree item. We use the 'xml-node' to populate the
   'Attributes' sub-tree for the new item."
   [parent keyname value xml-node]
-  (let [tree-item (TreeItem. (tree-node. (name keyname)
-                                         (if (nil? value) nil (cstring/trim value))))]
-    (jfx-run (.add (.getChildren parent) tree-item))
+  (let [content (if (nil? value) nil (cstring/trim value))
+        tree-item (jfx/tree-item (tree-node. (name keyname) content)
+                                 parent)]
     (build-tree-attr tree-item (:attrs xml-node))
     tree-item))
 
@@ -123,73 +99,69 @@
     :else
     (warn "Can't build node from " (class xml-node))))
 
-(defn tree-table-column
-  "Creates a new table column with the provided name, whose width matches that
-  provided and whose value will be populated by using the provided 'value-fn'."
-  [name value-fn width]
-  (let [column (TreeTableColumn. name)]
-    (.setCellValueFactory
-     column
-     (reify Callback
-       (call [this node]
-         (let [node-item (.getValue (.getValue node))]
-           (cond
-             (instance? tree-node node-item)
-             (ReadOnlyStringWrapper. (str (value-fn (.getValue (.getValue node)))))
-
-             :else
-             (ReadOnlyStringWrapper. (str tree-node)))))))
-    (.setPrefWidth column width)
-    column))
+(defn tree-node-cell-renderer
+  "Provides a render for a tree table column that will apply the provided
+  'value-fn' to the backing data object of the row's cell."
+  [value-fn]
+  (partial jfx/string-wrapper-ro
+     #(if (instance? tree-node %1)
+        (value-fn %1)
+        (str %1))))
 
 (defn new-window
   "Creates a new XMLTool window, begins parsing the provided XML file and makes
   the window visible. Returns a map with information about the window."
   [xml-file-path]
-  (let [stage-ref (ref nil)]
-    (jfx-run
-     (Platform/setImplicitExit false)
-     (let [stage (.build (StageBuilder/create))
-           border-pane (new BorderPane)
-           scene (new Scene border-pane)
-           tree-root (new TreeItem (tree-node. "Root" nil))
-           tree-table (new TreeTableView tree-root)]
 
-       (.setAll (.getColumns tree-table)
-                (list
-                 (tree-table-column "Name" #(.getName %1) 250)
-                 (tree-table-column "Value" #(.getValue %1) 700)))
-       (.setShowRoot tree-table false)
+  ;; don't exit when the window closes
+  (jfx/implicit-exit false)
 
-       (.setExpanded tree-root true)
+  ;; create our table and reference to hold our window
+  (let [tree-table (jfx/tree-table
+                    (tree-node. "Root" nil)
+                    (list
+                     (jfx/tree-table-column
+                      "Name" 250 (tree-node-cell-renderer #(.getName %1)))
+                     (jfx/tree-table-column
+                      "Value"428 (tree-node-cell-renderer #(.getValue %1))))
+                    :root-visible false
+                    :root-expanded true)
+        window-ref (ref nil)]
 
-       (.setPadding border-pane (new Insets 10 10 10 10))
-       (.setCenter border-pane tree-table)
+    ;; build the tree of XML data
+    (future
+      (build-tree-node (:root tree-table) (parse-xml xml-file-path)))
 
-       (.setScene stage scene)
-       (.show stage)
+    ;; show our window and set our reference
+    (jfx/run
+      (let [window (jfx/window
+                    :title "XMLTool" :width 700 :height 900
+                    :scene (jfx/scene
+                            (jfx/border-pane :center (:object tree-table)
+                                             :insets (jfx/insets 10 10 10 10 ))))]
+            (jfx/show-window window)
+            (dosync (ref-set window-ref window))))
 
-       (dosync (ref-set stage-ref
-                        {:stage stage
-                         :root tree-root
-                         :table tree-table}))
-
-       (future
-         (build-tree-node tree-root (parse-xml xml-file-path)))))
-    stage-ref))
+    window-ref))
 
 (defn test-window
   "Creates a new test window."
   []
-  (new-window "ProcessingReport.xml"))
+  (new-window "sample-data/ProcessingReport.xml"))
+
+(defn test-window-big
+  []
+  (new-window "sample-data/mondial-3.0.xml"))
+
+(defn test-window-really-big
+  []
+  (new-window "sample-data/sample.xml"))
 
 (defn test-window-bad
-  "Creates a new test window."
   []
-  (new-window "bad-char-file.xml"))
+  (new-window "sample-data/bad-char-file.xml"))
 
 (defn close-window
-  [stage-ref]
-  (jfx-run
-   (.close (:stage @stage-ref))))
+  [window]
+  (jfx/close-window @window))
 
