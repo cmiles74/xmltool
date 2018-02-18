@@ -208,12 +208,14 @@
                     :scene (jfx/scene
                             (jfx/border-pane :center split-pane
                                              :insets (jfx/insets 10 10 10 10 ))))]
-
         ;; loop to handle update messages
         (async/go-loop [message (async/<! info-q)]
           (when message
             (jfx/run (jfx/add-text info-panel message))
             (recur (async/<! info-q))))
+
+        ;; set window to exit on close
+        (jfx/exit-on-close window)
 
         ;; display our window
         (jfx/show-window window)
