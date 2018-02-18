@@ -9,14 +9,16 @@
     :refer (pspy pspy* profile defnp p p*)]
    [slingshot.slingshot :only [throw+ try+]])
   (:import
-   [javafx.beans.property ReadOnlyStringWrapper]
    [javafx.application Application Platform]
+   [javafx.beans.property ReadOnlyStringWrapper]
+   [javafx.event EventHandler]
+   [javafx.geometry Insets Orientation]
    [javafx.scene Group Scene]
-   [javafx.scene.control Label TreeTableView TreeTableColumn TreeView TreeItem]
+   [javafx.scene.control Label ScrollPane ScrollPane$ScrollBarPolicy SplitPane
+    TreeTableView TreeTableColumn TreeView TreeItem]
    [javafx.scene.layout BorderPane VBox]
-   [javafx.scene.text Font]
-   [javafx.stage StageBuilder StageStyle Stage]
-   [javafx.geometry Insets]
+   [javafx.scene.text Text Font TextFlow]
+   [javafx.stage FileChooser StageBuilder StageStyle Stage]
    [javafx.util Callback]))
 
 (defn init
@@ -47,6 +49,12 @@
       (run (if (seq? leaves)
              (.addAll children leaves)
              (.add children leaves))))))
+
+(defn remove-leaves
+  "Removes all of the leaves from the provided parent."
+  [parent]
+  (if (seq (.getChildren parent))
+    (.removeAll (.getChildren parent))))
 
 (defn tree-item
   "Returns a new TreeItem instance that wraps the provided data object. If a
@@ -110,6 +118,75 @@
   [top right bottom left]
   (Insets. top right bottom left))
 
+(defn translate-scrollbar-policy
+  [policy-key]
+  (cond
+    (= :always policy-key)
+    ScrollPane$ScrollBarPolicy/ALWAYS
+
+    (= :never policy-key)
+    ScrollPane$ScrollBarPolicy/NEVER
+
+    :else
+    ScrollPane$ScrollBarPolicy/AS_NEEDED))
+
+(defn scroll-pane
+  "Returns a new ScrollPane and populates it with the supplied component."
+  [component & {:keys [hbar-policy vbar-policy fit-to-width]}]
+  (let [scroll-pane (ScrollPane. component)]
+    (if hbar-policy (.setHbarPolicy scroll-pane
+                                    (translate-scrollbar-policy hbar-policy)))
+    (if vbar-policy (.setVbarPolicy scroll-pane
+                                    (translate-scrollbar-policy vbar-policy)))
+    (if fit-to-width (.setFitToWidth scroll-pane fit-to-width))
+    scroll-pane))
+
+(defn text-pane
+  "Returns a new TextFlow instance."
+  [& {:keys [height width min-height min-width]}]
+  (let [text-pane (TextFlow.)]
+    (if min-height (.setMinHeight text-pane min-height))
+    (if min-width (.setMinWidth text-pane min-width))
+    (if height (.setMaxHeight text-pane height))
+    (if width (.setMaxWidth text-pane width))
+    text-pane))
+
+(defn group
+  [components]
+  (let [group (Group.)]
+    (if (seq? components)
+      (.addAll (.getChildrent group) components)
+      (.add (.getChildren group) components))
+    group))
+
+(defn add-text
+  [text-pane text-seq]
+  (if (seq? text-seq)
+    (.addAll (.getChildren text-pane)
+             (map #(Text. (str (:text %1) "\n")) text-seq))
+    (.add (.getChildren text-pane)
+          (Text. (str (:text text-seq) "\n")))))
+
+(defn set-split-pane-divider-positions
+  [split-pane div-positions]
+  (if (seq? div-positions)
+    #(.setDividerPosition split-pane (first %1) (second %1))
+    (.setDividerPosition split-pane
+                         (first div-positions) (second div-positions))))
+
+(defn split-pane
+  "Returns a new SplitPane instance. The :orientation may be :horizontal
+  or :vertical. The :div-positions should be a sequence, the first item in each
+  should be the divider index and the second it's requested position."
+  [children-seq & {:keys [orientation div-positions]}]
+  (let [split-pane (SplitPane.)]
+    (if div-positions (set-split-pane-divider-positions split-pane div-positions))
+    (if (= :vertical orientation)
+      (.setOrientation split-pane Orientation/VERTICAL))
+    (if (seq children-seq)
+      (.addAll (.getItems split-pane) children-seq))
+    split-pane))
+
 (defn border-pane
   "Returns a BorderPane with the provided components ('top', 'right', 'bottom'
   and 'left') placed in their respective locations in the panel. If 'insets' are
@@ -147,13 +224,36 @@
   (run (.show stage))
   stage)
 
+(defn exit
+  []
+  (Platform/exit)
+  (System/exit 0))
+
+(defn exit-on-close
+  [window]
+  (.setOnCloseRequest window
+                      (reify
+                        EventHandler
+                        (handle [this event]
+                          (info "Exiting application")
+                          (exit))))
+  window)
+
 (defn close-window
   "Closes the provided window (Stage) instance."
   [stage]
-  (run (.close stage)))
+  (run
+    (.close stage)
+    (exit)))
 
 (defn implicit-exit
   "If this is set to true, the JavaFX runtime will exit when the last
   window (Stage) instance is closed."
   [implicit-exit]
   (Platform/setImplicitExit implicit-exit))
+
+(defn open-file
+  [window handler-fn]
+  (let [file-chooser (FileChooser.)]
+    (run (let [file (.showOpenDialog file-chooser window)]
+           (handler-fn file)))))

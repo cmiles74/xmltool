@@ -20,7 +20,7 @@
   (jfx/init)
 
   (println "Hello from XMLTool!")
-  (xmltool/new-window))
+  (xmltool/xml-tool (first args)))
 
 (defn -main
   "Bootstraps the application"
