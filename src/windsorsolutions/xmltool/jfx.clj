@@ -44,9 +44,9 @@
   [parent leaves]
   (let [children (.getChildren parent)]
     (run
-     (if (seq? leaves)
-       (.addAll children leaves)
-       (.add children leaves)))))
+      (run (if (seq? leaves)
+             (.addAll children leaves)
+             (.add children leaves))))))
 
 (defn tree-item
   "Returns a new TreeItem instance that wraps the provided data object. If a
@@ -154,6 +154,6 @@
 
 (defn implicit-exit
   "If this is set to true, the JavaFX runtime will exit when the last
-  window (Stage) instence is closed."
+  window (Stage) instance is closed."
   [implicit-exit]
   (Platform/setImplicitExit implicit-exit))

@@ -18,6 +18,7 @@
    [clojure.lang XMLHandler]))
 
 (defn sax-parser-content-handler
+  "Returns a content handler for a SAXParser that will log errors."
   [content-handler]
   (proxy [XMLHandler ErrorHandler][content-handler]
     (error [exception] (warn exception))
@@ -25,7 +26,8 @@
     (warning [exception] (warn exception))))
 
 (defn startparse-sax-non-validating
-  "Provides a SAX parser that will not attempt to validate the DTDs."
+  "Provides a SAX parser that will not attempt to validate the DTDs and will log
+  any parsing errors."
   [source content-handler]
   (let [factory (SAXParserFactory/newInstance)]
     (.setFeature factory "http://apache.org/xml/features/nonvalidating/load-external-dtd" false)
@@ -34,12 +36,12 @@
       (.parse parser source error-content-handler))))
 
 (defn parse-xml
-  "Returns a map of XML data at the provided path"
+  "Returns a map of XML data derived from the XML file at the provided path"
   [file-path]
   (xml/parse (io/input-stream file-path) startparse-sax-non-validating))
 
 (defprotocol tree-node-protocol
-  "Protocol all of our tree nodes must implement"
+  "Protocol all of our tree nodes must implement."
   (getName [node])
   (getValue [node]))
 
@@ -73,7 +75,7 @@
   "Builds a tree node for the provided node of XML data and adds it to the
   parent tree item."
   [parent xml-node]
-  (cond
+  (if
 
     ;; our xml-node is in fact an xml-node
     (and (contains? xml-node :tag) (contains? xml-node :attrs) (contains? xml-node :content))
@@ -96,11 +98,10 @@
         (future (doall (map #(build-tree-node tree-node %1) (:content xml-node))))))
 
     ;; we don't know what this node is!
-    :else
     (warn "Can't build node from " (class xml-node))))
 
 (defn tree-node-cell-renderer
-  "Provides a render for a tree table column that will apply the provided
+  "Provides a renderer for a tree table column that will apply the provided
   'value-fn' to the backing data object of the row's cell."
   [value-fn]
   (partial jfx/string-wrapper-ro
@@ -144,6 +145,11 @@
 
     window-ref))
 
+(defn close-window
+  "Closes the provided window."
+  [window-ref]
+  (jfx/close-window @window-ref))
+
 (defn test-window
   "Creates a new test window."
   []
@@ -160,8 +166,4 @@
 (defn test-window-bad
   []
   (new-window "sample-data/bad-char-file.xml"))
-
-(defn close-window
-  [window]
-  (jfx/close-window @window))
 
