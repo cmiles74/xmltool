@@ -18,6 +18,12 @@ It will also try to strip out any invalid characters should it come across them.
 If it does, it will log that fact in the output panel at the bottom of the
 window.
 
+## Where Can I Get It?
+
+The most recent build is [available
+here](http://git-east.windsor.com/cmiles/xmltool/-/jobs/5/artifacts/download?job=deploy).
+`:-D`
+
 ## Development
 
 This project is written in [Clojure][2] and leverages [Java][3] and uses
