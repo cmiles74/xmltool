@@ -20,9 +20,6 @@ build:
     - lein deps
     - lein uberjar
     - lein launch4j
-
-deploy:
-  stage: deploy
   artifacts:
     paths:
       - target/*-standalone.jar
