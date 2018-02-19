@@ -63,6 +63,7 @@
   (xml/parse (io/input-stream file-path) startparse-sax-non-validating))
 
 (defn parse-xml-str
+  "Returns a map of XML data derived from the provided String of XML data."
   [xml-str]
   (xml/parse (io/input-stream (.getBytes xml-str)) startparse-sax-non-validating))
 
@@ -147,18 +148,26 @@
         (str %1))))
 
 (defn queue-message
+  "Adds a message map to the provided message queue."
   [msg-q msg-map]
   (async/go (async/>! msg-q msg-map)))
 
 (defn queue-info-message
+  "Adds an info message to the provided queue, the message will contain the
+  provided text."
   [msg-q text]
   (queue-message msg-q {:text text}))
 
 (defn queue-error-message
+  "Adds an error message to the provided queue, the message will contain the
+  provided text."
   [msg-q text]
   (queue-message msg-q {:text text :type :error}))
 
 (defn parse-xml-data
+  "Begins parsing the data at the provided 'file-path' and populates the
+  provided 'tree-table' with nodes created from that data. As parsing
+  progresses, messages are posted to the provided message queue ('info-q')."
   [tree-table info-q xml-file-path]
   (let []
     (sling/try+
@@ -181,9 +190,6 @@
   the window visible. Returns a map with information about the window."
   [xml-file-path]
 
-  ;; don't exit when the window closes
-  ;;(jfx/implicit-exit false)
-
   ;; create our table and reference to hold our window
   (let [info-q (async/chan)
         tree-table (jfx/tree-table
@@ -205,6 +211,7 @@
                         :orientation :vertical)
             window (jfx/window
                     :title "XMLTool" :width 700 :height 900
+                    :exit-on-close true
                     :scene (jfx/scene
                             (jfx/border-pane :center split-pane
                                              :insets (jfx/insets 10 10 10 10 ))))]
@@ -213,9 +220,6 @@
           (when message
             (jfx/run (jfx/add-text info-panel message))
             (recur (async/<! info-q))))
-
-        ;; set window to exit on close
-        (jfx/exit-on-close window)
 
         ;; display our window
         (jfx/show-window window)
@@ -239,6 +243,8 @@
     window-ref))
 
 (defn xml-tool
+  "Creates a new XMLTool instance. This is the main entry point for starting the
+  application user interface."
   ([]
    (new-window nil))
   ([file-path]

@@ -21,10 +21,34 @@
    [javafx.stage FileChooser StageBuilder StageStyle Stage]
    [javafx.util Callback]))
 
+(defn development?
+  "Returns true if we are running in the development environment."
+  []
+  (if (and (resolve 'user/ENVIRONMENT)
+           (= :development (var-get (resolve 'user/ENVIRONMENT))))
+    true))
+
+(defn exit
+  "Exits the JavaFX Platform and the Java runtime."
+  []
+  (Platform/exit)
+  (System/exit 0))
+
+(defn implicit-exit
+  "If this is set to true, the JavaFX runtime will exit when the last
+  window (Stage) instance is closed."
+  [implicit-exit]
+  (Platform/setImplicitExit implicit-exit))
+
 (defn init
   "Initializes the JavaFX environment."
   []
-  (defonce force-toolkit-init (javafx.embed.swing.JFXPanel.)))
+
+  ;; force the JavaFX runtime to initialize
+  (defonce force-toolkit-init (javafx.embed.swing.JFXPanel.))
+
+  ;; don't exit on window close during development
+  (if (development?) (implicit-exit false)))
 
 (defmacro run
   "Invokes the provided body in the context of the JavaFX application thread."
@@ -77,7 +101,7 @@
 
 (defn tree-table-column-callback
   "Creates a Callback that may be provided to a TreeTableColumn to render the
-  cell values for that column. The Callback will apply the provided 'value-fn'
+  cell valuesq for that column. The Callback will apply the provided 'value-fn'
   to the backing data object for the TreeTableRow's TreeItem instance."
   [value-fn]
   (reify Callback
@@ -152,6 +176,7 @@
     text-pane))
 
 (defn group
+  "Returns a new Group containing the provided components."
   [components]
   (let [group (Group.)]
     (if (seq? components)
@@ -160,6 +185,7 @@
     group))
 
 (defn add-text
+  "Adds the provides Text instances to the panel."
   [text-pane text-seq]
   (if (seq? text-seq)
     (.addAll (.getChildren text-pane)
@@ -168,6 +194,9 @@
           (Text. (str (:text text-seq) "\n")))))
 
 (defn set-split-pane-divider-positions
+  "Sets the divider positions for the provided SplitPane instance. The divider positions should be a sequence consisting of a sequence with two items, the first being the divider index and the second the position for that divider (from 0 to 1.0). For instance...
+
+  (set-split-pane-divider-positions split-pane [[0 0.85]])"
   [split-pane div-positions]
   (if (seq? div-positions)
     #(.setDividerPosition split-pane (first %1) (second %1))
@@ -206,16 +235,27 @@
   [root]
   (Scene. root))
 
+(defn exit-on-close-handler
+  "Returns an EventHandler that may be attached to a window (Stage) instance in
+  order to exit the JavaFX and Java runtime when that window is closed."
+  []
+  (reify
+    EventHandler
+    (handle [this event]
+      (if (not (development?))
+        (exit)))))
+
 (defn window
   "Creates and returns a new Stage instance around the provided Scene. If no
   'style' is provided, the Stage will be 'decorated'. The 'width' and 'height'
   values will be used to set the Stage's minimum width and height."
-  [& {:keys [title scene style width height]}]
+  [& {:keys [title scene style width height exit-on-close]}]
   (let [stage (Stage. (if style style StageStyle/DECORATED))]
     (if title (.setTitle stage title))
     (if scene (.setScene stage scene))
     (if width (.setMinWidth stage width))
     (if height (.setMinHeight stage height))
+    (if exit-on-close (.setOnCloseRequest stage (exit-on-close-handler)))
     stage))
 
 (defn show-window
@@ -224,33 +264,12 @@
   (run (.show stage))
   stage)
 
-(defn exit
-  []
-  (Platform/exit)
-  (System/exit 0))
-
-(defn exit-on-close
-  [window]
-  (.setOnCloseRequest window
-                      (reify
-                        EventHandler
-                        (handle [this event]
-                          (info "Exiting application")
-                          (exit))))
-  window)
-
 (defn close-window
   "Closes the provided window (Stage) instance."
   [stage]
   (run
     (.close stage)
     (exit)))
-
-(defn implicit-exit
-  "If this is set to true, the JavaFX runtime will exit when the last
-  window (Stage) instance is closed."
-  [implicit-exit]
-  (Platform/setImplicitExit implicit-exit))
 
 (defn open-file
   [window handler-fn]

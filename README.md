@@ -79,6 +79,29 @@ With that complete, you can instruct Leiningen to build the Windows executable.
 
 The executable will be in the `target` folder.
 
+### The Development Environment
+
+Things will vary from tool to tool, but the simplest development environment is
+simply asking Leiningen to gather the dependencies and present you with an
+interactive session.
+
+    $ lein repl
+    
+From there, you can switch to the `user` namespace and initialize the
+environment.
+
+    windsorsolutions.xmltool.main=> (ns user)
+    user=> (init)
+    
+This will initialize the JavaFX runtime and set some flags indicating that you
+are in development mode. This will prevent your interactive session from exiting
+every time you close the XML Tool window. From here you can work on the project.
+To test your work, you may startup the application.
+
+    user=> (xmltool/xml-tool)
+    
+That will start up a new instance and prompt you for an XML file to parse.
+
 ## The Icon
 
 The icon for the application was created by [bokehlicia][8] is licensed under
