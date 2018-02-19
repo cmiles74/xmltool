@@ -1,5 +1,5 @@
-(ns windsorsolutions.xmltool.main
-  "Bootstraps the XMLTool application"
+(ns ^{:doc "Bootstraps the XMLTool application"}
+    windsorsolutions.xmltool.main
   (:gen-class)
   (:require
    [taoensso.timbre :as timbre
