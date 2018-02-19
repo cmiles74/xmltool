@@ -12,7 +12,7 @@ before_script:
   - wget "https://sourceforge.net/projects/launch4j/files/launch4j-3/3.11/launch4j-3.11-linux-x64.tgz/download" -O launch4j.tgz
   - tar -xvf launch4j.tgz
   - mkdir -p ~/.lein
-  - echo "{:user {:plugins [[com.nervestaple/lein-launch4j "0.1.2"]] :launch4j-install-dir \"$(pwd)/launch4j\"}}" > ~/.lein/profiles.clj
+  - echo "{:user {:plugins [[com.nervestaple/lein-launch4j \"0.1.2\"]] :launch4j-install-dir \"$(pwd)/launch4j\"}}" > ~/.lein/profiles.clj
  
 build:
   stage: build
