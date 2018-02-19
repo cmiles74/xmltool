@@ -4,7 +4,7 @@ stages:
 
 before_script:
   - apt-get update -y
-  - apt-get install openjdk-8-jdk openjfx -y
+  - apt-get install openjdk-8-jdk openjfx wget -y
   - wget https://raw.githubusercontent.com/technomancy/leiningen/stable/bin/lein
   - chmod a+x lein
   - export LEIN_ROOT=1
@@ -12,7 +12,7 @@ before_script:
   - wget "https://sourceforge.net/projects/launch4j/files/launch4j-3/3.11/launch4j-3.11-linux-x64.tgz/download" -O launch4j.tgz
   - tar -xvf launch4j.tgz
   - mkdir -p ~/.lein
-  - echo "{:user {:plugins [[com.nervestaple/lein-launch4j "0.1.2"]] :launch4j-install-dir "/opt/launch4j"}}" > ~/.lein/profiles.clj
+  - echo "{:user {:plugins [[com.nervestaple/lein-launch4j "0.1.2"]] :launch4j-install-dir \"$(pwd)/launch4j\"}}" > ~/.lein/profiles.clj
  
 build:
   stage: build
