@@ -9,9 +9,13 @@
    [taoensso.timbre.profiling :as profiling
     :refer (pspy pspy* profile defnp p p*)]
    [slingshot.slingshot :only [throw+ try+]]
+   [clojure.java.io :as io]
+   [windsorsolutions.xmltool.xml :as xml]
    [windsorsolutions.xmltool.jfx :as jfx]
    [windsorsolutions.xmltool.xmltool :as xmltool]
-   [windsorsolutions.xmltool.main :as boot]))
+   [windsorsolutions.xmltool.main :as boot])
+  (:import
+   [java.io File]))
 
 (defn init
   "Initializes the development environment."

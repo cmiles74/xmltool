@@ -101,14 +101,14 @@
   (queue-message msg-q {:text text :type :error}))
 
 (defn parse-xml-data
-  "Begins parsing the data at the provided 'file-path' and populates the
-  provided 'tree-table' with nodes created from that data. As parsing
-  progresses, messages are posted to the provided message queue ('info-q')."
-  [tree-table info-q xml-file-path]
+  "Begins parsing the data from the File ('file') and populates the provided
+  'tree-table' with nodes created from that data. As parsing progresses,
+  messages are posted to the provided message queue ('info-q')."
+  [tree-table info-q file]
   (let []
     (sling/try+
-     (queue-info-message info-q (str "Loading the file at " xml-file-path "..."))
-     (build-tree-node (:root tree-table) (xml/parse-xml xml-file-path))
+     (queue-info-message info-q (str "Loading the file at " (.getAbsolutePath file) "..."))
+     (build-tree-node (:root tree-table) (xml/parse-xml file))
 
      ;; try stripping junk characters if we see a fatal exception
      (catch #(= :fatal (:type %1)) exception
@@ -117,9 +117,10 @@
                             (str "Fatal error encountered while parsing line "
                                  (:line exception) " column " (:column exception) ": "
                                  (.getMessage (:exception exception))))
-       (let [cleaned-xml (xml/clean-xml xml-file-path)]
-         (queue-info-message info-q (str "Recovered " (count cleaned-xml) " characters of data, rebuilding tree"))
-         (build-tree-node (:root tree-table) (xml/parse-xml-str cleaned-xml)))))))
+
+       ;; strip out the bad characters
+       (queue-info-message info-q (str "Attempting to scrub bad characters from the XML data"))
+       (build-tree-node (:root tree-table) (xml/parse-xml (xml/clean-xml file)))))))
 
 (defn new-window
   "Creates a new XMLTool window, begins parsing the provided XML file and makes
@@ -173,7 +174,7 @@
       (jfx/open-file @window-ref
                      #(future
                         (if %1
-                          (parse-xml-data tree-table info-q (.getAbsolutePath %1))
+                          (parse-xml-data tree-table info-q %1)
                           (jfx/close-window @window-ref)))))
 
     window-ref))

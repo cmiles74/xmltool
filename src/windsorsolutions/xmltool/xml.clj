@@ -13,9 +13,12 @@
    [clojure.walk :as walk]
    [clojure.string :as cstring])
   (:import
+   [java.io ByteArrayOutputStream DataOutputStream File InputStream PipedInputStream PipedOutputStream]
    [javax.xml.parsers SAXParserFactory SAXParser]
    [org.xml.sax ErrorHandler]
    [clojure.lang XMLHandler]))
+
+(def BAD-CHARACTERS #{16})
 
 (defn sax-parser-content-handler
   "Returns a content handler for a SAXParser that will log errors."
@@ -56,23 +59,53 @@
           error-content-handler (sax-parser-content-handler content-handler)]
       (.parse parser source error-content-handler))))
 
-(defn parse-xml
-  "Returns a map of XML data derived from the XML file at the provided path"
-  [file-path]
-  (xml/parse (io/input-stream file-path) startparse-sax-non-validating))
+(defn clean-char-seq
+  "Provides a sequence of characters from the provide File ('file') of text.
+  Characters that aren't valid XML are filtered out of the sequence. The
+  'char-codes' should be a set of int values that denote characters that should
+  be filtered out."
+  [file char-codes]
+  (let [stream (io/input-stream file)
+        step (fn step []
+               (let [char-in (.read stream)]
+                 (cond
 
-(defn parse-xml-str
-  "Returns a map of XML data derived from the provided String of XML data."
-  [xml-str]
-  (xml/parse (io/input-stream (.getBytes xml-str)) startparse-sax-non-validating))
+                   ;; drop "data link escape" characters
+                   ;;(= 16 (int char-in))
+                   (some #{char-in} char-codes)
+                   (lazy-seq (step))
+
+                   ;; add all other characters to our sequence
+                   (not= -1 char-in)
+                   (cons (char char-in) (lazy-seq (step)))
+
+                   ;; no more data, close the stream and exit
+                   :else
+                   (.close stream))))]
+    (lazy-seq (step))))
 
 (defn clean-xml
-  "Attempts to clean the XML data at the provided 'file-path' and returns a
-  string containing that cleaned data."
-  [file-path]
-  (let [cleaned-xml (cstring/replace
-                     (slurp file-path)
-                     #"[\u0010]+"
-                     "")]
-    (info (str "Text cleaned with " (count cleaned-xml) " characters"))
-    cleaned-xml))
+  "Returns an InputStream that has filtered out invalid XML characters."
+  [file]
+  (let [chars-in (clean-char-seq file BAD-CHARACTERS)
+        piped-in (PipedInputStream.)
+        piped-out (PipedOutputStream. piped-in)]
+    (future
+      (try
+        (doseq [char-in chars-in] (.write piped-out (int char-in)))
+        (catch Exception e (info e))
+        (finally (try (.close piped-out)))))
+    piped-in))
+
+(defmulti parse-xml
+  "Parses an XML file and returns a map of it's data."
+  class)
+
+(defmethod parse-xml InputStream [stream]
+  (xml/parse stream startparse-sax-non-validating))
+
+(defmethod parse-xml File [file]
+  (xml/parse (io/input-stream file) startparse-sax-non-validating))
+
+(defmethod parse-xml String [text]
+  (xml/parse (io/input-stream (.getBytes text)) startparse-sax-non-validating))
