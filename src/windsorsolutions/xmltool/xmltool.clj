@@ -25,6 +25,30 @@
   (getName [this] keyname)
   (getValue [this] value))
 
+(defn queue-message
+  "Adds a message map to the provided message queue."
+  [msg-q msg-map]
+  (async/>!! msg-q msg-map))
+
+(defn queue-info-message
+  "Adds an info message to the provided queue, the message will contain the
+  provided text."
+  [msg-q text]
+  (queue-message msg-q {:text text}))
+
+(defn queue-error-message
+  "Adds an error message to the provided queue, the message will contain the
+  provided text."
+  [msg-q text]
+  (queue-message msg-q {:text text :type :error}))
+
+(defn queue-tree-message
+  "Adds a tree building progress message to the provided queue."
+  [msg-q nodes-added children-count]
+  (queue-message msg-q {:type :tree-progress
+                        :nodes-added nodes-added
+                        :children-count children-count}))
+
 (defn build-tree-attr
   "Builds a sub-tree of attribute values and adds them to the tree node."
   [parent attrs]
@@ -47,8 +71,9 @@
 
 (defn build-tree-node
   "Builds a tree node for the provided node of XML data and adds it to the
-  parent tree item."
-  [parent xml-node  & {:keys [message-q]}]
+  parent tree item. If a message queue ('msg-q') is provided, progress messages
+  will be provided while the tree is being constructed."
+  [parent xml-node  & {:keys [msg-q]}]
   (if
 
     ;; our xml-node is in fact an xml-node
@@ -59,17 +84,19 @@
       (or (nil? (:content xml-node)) (and (= 1 (count (:content xml-node)))
                                           (string? (first (:content xml-node)))))
       (let [content (if (nil? (:content xml-node)) nil (first (:content xml-node)))]
+        (if msg-q (queue-tree-message msg-q 1 0))
         (build-tree-item parent (:tag xml-node) content xml-node))
 
       ;; node content is a single map
       (map? (:content xml-node))
       (let [tree-node (build-tree-item parent (:tag xml-node) nil xml-node)]
-        (build-tree-node tree-node (:content xml-node)))
+        (build-tree-node tree-node (:content xml-node) :msg-q msg-q))
 
       ;; node content is a vector
       (vector? (:content xml-node))
       (let [tree-node (build-tree-item parent (:tag xml-node) nil xml-node)]
-        (future (doall (map #(build-tree-node tree-node %1) (:content xml-node))))))
+        (if msg-q (queue-tree-message msg-q 1 (count (:content xml-node))))
+        (future (doall (map #(build-tree-node tree-node %1 :msg-q msg-q) (:content xml-node))))))
 
     ;; we don't know what this node is!
     (warn "Can't build node from " (class xml-node))))
@@ -83,32 +110,15 @@
         (value-fn %1)
         (str %1))))
 
-(defn queue-message
-  "Adds a message map to the provided message queue."
-  [msg-q msg-map]
-  (async/go (async/>! msg-q msg-map)))
-
-(defn queue-info-message
-  "Adds an info message to the provided queue, the message will contain the
-  provided text."
-  [msg-q text]
-  (queue-message msg-q {:text text}))
-
-(defn queue-error-message
-  "Adds an error message to the provided queue, the message will contain the
-  provided text."
-  [msg-q text]
-  (queue-message msg-q {:text text :type :error}))
-
 (defn parse-xml-data
   "Begins parsing the data from the File ('file') and populates the provided
   'tree-table' with nodes created from that data. As parsing progresses,
   messages are posted to the provided message queue ('info-q')."
-  [tree-table info-q file]
+  [tree-table file info-q]
   (let []
     (sling/try+
      (queue-info-message info-q (str "Loading the file at " (.getAbsolutePath file) "..."))
-     (build-tree-node (:root tree-table) (xml/parse-xml file))
+     (build-tree-node (:root tree-table) (xml/parse-xml file) :msg-q info-q)
 
      ;; try stripping junk characters if we see a fatal exception
      (catch #(= :fatal (:type %1)) exception
@@ -120,7 +130,7 @@
 
        ;; strip out the bad characters
        (queue-info-message info-q (str "Attempting to scrub bad characters from the XML data"))
-       (build-tree-node (:root tree-table) (xml/parse-xml (xml/clean-xml file)))))))
+       (build-tree-node (:root tree-table) (xml/parse-xml (xml/clean-xml file)) :msg-q info-q)))))
 
 (defn new-window
   "Creates a new XMLTool window, begins parsing the provided XML file and makes
@@ -128,7 +138,7 @@
   [xml-file-path]
 
   ;; create our table and reference to hold our window
-  (let [info-q (async/chan)
+  (let [info-q (async/chan (async/buffer 500) nil #(warn %1))
         tree-table (jfx/tree-table
                     (tree-node. "Root" nil)
                     (list
@@ -138,7 +148,9 @@
                       "Value"428 (tree-node-cell-renderer #(.getValue %1))))
                     :root-visible false
                     :root-expanded true)
-        window-ref (ref nil)]
+        window-atom (atom nil)
+        node-count (atom 0)
+        children-count (atom 0)]
 
     ;; show our window and set our reference
     (jfx/run
@@ -155,7 +167,21 @@
         ;; loop to handle update messages
         (async/go-loop [message (async/<! info-q)]
           (when message
-            (jfx/run (jfx/add-text info-panel message))
+            (cond
+
+              ;; display the text message
+              (:text message)
+              (jfx/run (jfx/add-text info-panel message))
+
+              ;; update our progress counts
+              (= :tree-progress (:type message))
+              (do
+                (swap! node-count #(+ %1 (:nodes-added message)))
+                (swap! children-count #(+ %1 (:children-count message)))
+                ;; (if (and @node-count (= 0 (rem @node-count 1000)))
+                ;;   (info "nodes" @node-count "incoming" @children-count))
+                (if (= @node-count (inc @children-count))
+                  (queue-info-message info-q (str "Document parsed with " (inc @children-count) " nodes")))))
             (recur (async/<! info-q))))
 
         ;; display our window
@@ -163,21 +189,21 @@
         (jfx/set-split-pane-divider-positions split-pane [0 0.9])
 
         ;; update our reference with our items
-        (dosync (ref-set window-ref window))))
+        (reset! window-atom window)))
 
     (if xml-file-path
 
       ;; build the tree of XML data
-      (future (parse-xml-data tree-table info-q xml-file-path))
+      (future (parse-xml-data tree-table xml-file-path info-q))
 
       ;; prompt for a file
-      (jfx/open-file @window-ref
+      (jfx/open-file @window-atom
                      #(future
                         (if %1
-                          (parse-xml-data tree-table info-q %1)
-                          (jfx/close-window @window-ref)))))
+                          (parse-xml-data tree-table %1 info-q)
+                          (jfx/close-window @window-atom)))))
 
-    window-ref))
+    window-atom))
 
 (defn xml-tool
   "Creates a new XMLTool instance. This is the main entry point for starting the

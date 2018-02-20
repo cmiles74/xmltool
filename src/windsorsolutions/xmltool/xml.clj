@@ -18,6 +18,7 @@
    [org.xml.sax ErrorHandler]
    [clojure.lang XMLHandler]))
 
+;; set of invalid XML characters that prevent parsing
 (def BAD-CHARACTERS #{16})
 
 (defn sax-parser-content-handler
@@ -26,7 +27,6 @@
   (proxy [XMLHandler ErrorHandler][content-handler]
     (error [exception]
       (error exception)
-      (info (class exception))
       (sling/throw+ {:exception exception
                      :type :error
                      :id (.getSystemId exception)
@@ -34,7 +34,6 @@
                      :line (.getLineNumber exception)}))
     (fatalError [exception]
       (fatal exception)
-      (info (class exception))
       (sling/throw+ {:exception exception
                      :type :fatal
                      :id (.getSystemId exception)
@@ -42,7 +41,6 @@
                      :line (.getLineNumber exception)}))
     (warning [exception]
       (warn exception)
-      (info (class exception))
       (sling/throw+ {:exception exception
                      :type :warn
                      :id (.getSystemId exception)

@@ -31,8 +31,9 @@
 (defn exit
   "Exits the JavaFX Platform and the Java runtime."
   []
-  (Platform/exit)
-  (System/exit 0))
+  (if (not (development?))
+    (do (Platform/exit)
+        (System/exit 0))))
 
 (defn implicit-exit
   "If this is set to true, the JavaFX runtime will exit when the last
