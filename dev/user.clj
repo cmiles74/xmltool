@@ -10,6 +10,7 @@
     :refer (pspy pspy* profile defnp p p*)]
    [slingshot.slingshot :only [throw+ try+]]
    [clojure.java.io :as io]
+   [clojure.core.async :as async]
    [windsorsolutions.xmltool.xml :as xml]
    [windsorsolutions.xmltool.jfx :as jfx]
    [windsorsolutions.xmltool.xmltool :as xmltool]

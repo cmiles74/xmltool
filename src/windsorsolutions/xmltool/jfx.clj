@@ -16,8 +16,9 @@
    [javafx.scene Group Scene]
    [javafx.scene.control Label ScrollPane ScrollPane$ScrollBarPolicy SplitPane
     TreeTableView TreeTableColumn TreeView TreeItem]
+   [javafx.scene.image Image]
    [javafx.scene.layout BorderPane VBox]
-   [javafx.scene.text Text Font TextFlow]
+   [javafx.scene.text Font Text TextFlow]
    [javafx.stage FileChooser StageBuilder StageStyle Stage]
    [javafx.util Callback]))
 
@@ -246,17 +247,25 @@
       (if (not (development?))
         (exit)))))
 
+(defn image
+  "Returns a new image with the content at the provided path."
+  [file-path]
+  (Image. file-path))
+
 (defn window
   "Creates and returns a new Stage instance around the provided Scene. If no
   'style' is provided, the Stage will be 'decorated'. The 'width' and 'height'
-  values will be used to set the Stage's minimum width and height."
-  [& {:keys [title scene style width height exit-on-close]}]
+  values will be used to set the Stage's minimum width and height. If an Image
+  is provided under the :icon key, it will be used as the icon in the title bar
+  window if the host operating system does that sort of thing."
+  [& {:keys [title scene style width height exit-on-close icon]}]
   (let [stage (Stage. (if style style StageStyle/DECORATED))]
     (if title (.setTitle stage title))
     (if scene (.setScene stage scene))
     (if width (.setMinWidth stage width))
     (if height (.setMinHeight stage height))
     (if exit-on-close (.setOnCloseRequest stage (exit-on-close-handler)))
+    (if icon (.add (.getIcons stage) icon))
     stage))
 
 (defn show-window
