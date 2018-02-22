@@ -120,18 +120,30 @@
         (value-fn %1)
         (str %1))))
 
+(defn catch-non-fatal-xml-parse-errors
+  "Wraps a function that may through XML parsing errors in an error handler that
+  will catch and log all non-fatal exceptions to the provided message queue."
+  [msg-q work-fn]
+  (sling/try+ (work-fn)
+              (catch #(not= :fatal (:type %1)) exception
+                (queue-error-message msg-q
+                                     (str "Error of type \"" (name (:type exception))
+                                          "\" encountered while parsing line "
+                                          (:line exception) " column " (:column exception) ": "
+                                          (.getMessage (:exception exception)))))
+              (catch Exception exception
+                (queue-error-message msg-q (.getMessage exception)))))
+
 (defn parse-xml-data
   "Begins parsing the data from the File ('file') and populates the provided
   'tree-table' with nodes created from that data. As parsing progresses,
   messages are posted to the provided message queue ('info-q')."
   [tree-table file info-q]
-  (let []
-    (sling/try+
-     (queue-info-message info-q (str "Loading the file at " (.getAbsolutePath file) "..."))
-     (build-tree-node (:root tree-table) (xml/parse-xml file) :msg-q info-q)
-
-     ;; try stripping junk characters if we see a fatal exception
-     (catch #(= :fatal (:type %1)) exception
+  (sling/try+
+   (queue-info-message info-q (str "Loading the file at " (.getAbsolutePath file) "..."))
+   (catch-non-fatal-xml-parse-errors
+    info-q #(build-tree-node (:root tree-table) (xml/parse-xml file) :msg-q info-q))
+   (catch #(= :fatal (:type %1)) exception
        (warn (str (:exception exception)))
        (queue-error-message info-q
                             (str "Fatal error encountered while parsing line "
@@ -139,8 +151,18 @@
                                  (.getMessage (:exception exception))))
 
        ;; strip out the bad characters
-       (queue-info-message info-q (str "Attempting to scrub bad characters from the XML data"))
-       (build-tree-node (:root tree-table) (xml/parse-xml (xml/clean-xml file)) :msg-q info-q)))))
+       (sling/try+
+        (queue-info-message info-q (str "Attempting to scrub bad characters from the XML data"))
+        (catch-non-fatal-xml-parse-errors
+         info-q #(build-tree-node (:root tree-table) (xml/parse-xml (xml/clean-xml file)) :msg-q info-q))
+
+        ;; well, now we know we really can't parse this file :-(
+        (catch #(= :fatal (:type %1)) exception
+          (warn (str (:exception exception)))
+          (queue-error-message info-q
+                               (str "Fatal error encountered while parsing line "
+                                    (:line exception) " column " (:column exception) ": "
+                                    (.getMessage (:exception exception)))))))))
 
 (defn start-xml-parsing
   "Begins parsing the XML data provided by 'xml-file-path' and, as that data is
@@ -168,8 +190,10 @@
         (recur (- (inc @children-count-atom) @node-count-atom))))
 
     ;; post completion message to the queue
-    (queue-complete-message msg-q
-                            (str "Document parsed with " (inc @children-count-atom) " nodes"))))
+    (if (= 0 @children-count-atom)
+      (queue-complete-message msg-q (str "Document could not be parsed!"))
+      (queue-complete-message msg-q
+                              (str "Document parsed with " (inc @children-count-atom) " nodes")))))
 
 (defn new-window
   "Creates a new XMLTool window, begins parsing the provided XML file and makes
