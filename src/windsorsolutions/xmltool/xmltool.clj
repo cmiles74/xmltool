@@ -239,7 +239,9 @@
         (jfx/open-file @window-atom
                        #(if %1
                           (future (start-xml-parsing tree-table %1 node-count children-count info-q))
-                          (jfx/close-window @window-atom)))))
+                          (jfx/close-window @window-atom))
+                       :title "Select an XML File to Inspect"
+                       :filters (jfx/file-chooser-extension-filter "XML Files" "*.xml"))))
 
      window-atom))
 

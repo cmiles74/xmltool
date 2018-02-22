@@ -19,7 +19,7 @@
    [javafx.scene.image Image]
    [javafx.scene.layout BorderPane VBox]
    [javafx.scene.text Font Text TextFlow]
-   [javafx.stage FileChooser StageBuilder StageStyle Stage]
+   [javafx.stage FileChooser FileChooser$ExtensionFilter StageBuilder StageStyle Stage]
    [javafx.util Callback]))
 
 (defn development?
@@ -72,9 +72,9 @@
   [parent leaves]
   (let [children (.getChildren parent)]
     (run
-      (run (if (seq? leaves)
-             (.addAll children leaves)
-             (.add children leaves))))))
+      (if (sequential? leaves)
+        (.addAll children leaves)
+        (.add children leaves)))))
 
 (defn remove-leaves
   "Removes all of the leaves from the provided parent."
@@ -133,7 +133,7 @@
   (let [root (TreeItem. data-object)
         tree-table (TreeTableView. root)]
     (.setAll (.getColumns tree-table)
-             (if (seq? columns) columns (list columns)))
+             (if (sequential? columns) columns (list columns)))
     (.setShowRoot tree-table root-visible)
     (if root-expanded (.setExpanded root root-expanded))
     {:root root :object tree-table}))
@@ -181,7 +181,7 @@
   "Returns a new Group containing the provided components."
   [components]
   (let [group (Group.)]
-    (if (seq? components)
+    (if (sequential? components)
       (.addAll (.getChildrent group) components)
       (.add (.getChildren group) components))
     group))
@@ -189,18 +189,21 @@
 (defn add-text
   "Adds the provides Text instances to the panel."
   [text-pane text-seq]
-  (if (seq? text-seq)
+  (if (sequential? text-seq)
     (.addAll (.getChildren text-pane)
              (map #(Text. (str (:text %1) "\n")) text-seq))
     (.add (.getChildren text-pane)
           (Text. (str (:text text-seq) "\n")))))
 
 (defn set-split-pane-divider-positions
-  "Sets the divider positions for the provided SplitPane instance. The divider positions should be a sequence consisting of a sequence with two items, the first being the divider index and the second the position for that divider (from 0 to 1.0). For instance...
+  "Sets the divider positions for the provided SplitPane instance. The divider
+  positions should be a sequence consisting of a sequence with two items, the
+  first being the divider index and the second the position for that divider
+  (from 0 to 1.0). For instance...
 
   (set-split-pane-divider-positions split-pane [[0 0.85]])"
   [split-pane div-positions]
-  (if (seq? div-positions)
+  (if (sequential? (first div-positions))
     #(.setDividerPosition split-pane (first %1) (second %1))
     (.setDividerPosition split-pane
                          (first div-positions) (second div-positions))))
@@ -281,8 +284,32 @@
     (.close stage)
     (exit)))
 
+(defn file-chooser-extension-filter
+  "Returns a new ExtensionFilter for a FileChooser with the provided description
+  and supplied list of file extension description (i.e. \"*.txt\")."
+  [description extensions]
+  (if (sequential? extensions)
+    (FileChooser$ExtensionFilter. description extensions)
+    (FileChooser$ExtensionFilter. description [extensions])))
+
+(defn file-chooser
+  "Returns a new FileChooser. If the :title key is set, it's used as the title
+  for the window. If a sequence of filters is provided under the :filters key,
+  they will be used to create and add ExtensionFilter instances to the chooser."
+  [& {:keys [title filters]}]
+  (let [chooser (FileChooser. )]
+    (if title (.setTitle chooser title))
+    (if filters
+      (if (sequential? filters)
+        (.addAll (.getExtensionFilters chooser) filters)
+        (.add (.getExtensionFilters chooser) filters)))
+    chooser))
+
 (defn open-file
-  [window handler-fn]
-  (let [file-chooser (FileChooser.)]
+  "Creates a new FileChooser (with the optional :title and :filters values) and
+  owns it to the provided Window. The chooser is then displayed, prompting for
+  the selection of a file to open."
+  [window handler-fn & {:keys [title filters]}]
+  (let [file-chooser (file-chooser :title title :filters filters)]
     (run (let [file (.showOpenDialog file-chooser window)]
            (handler-fn file)))))
