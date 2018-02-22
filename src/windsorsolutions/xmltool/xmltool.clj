@@ -11,7 +11,8 @@
    [clojure.string :as cstring]
    [clojure.core.async :as async]
    [windsorsolutions.xmltool.xml :as xml]
-   [windsorsolutions.xmltool.jfx :as jfx]))
+   [windsorsolutions.xmltool.jfx :as jfx]
+   [clojure.java.io :as io]))
 
 
 (defprotocol tree-node-protocol
@@ -198,7 +199,7 @@
                         :orientation :vertical)
             window (jfx/window
                     :title "XMLTool" :width 700 :height 900
-                    :icon (jfx/image "/rocket-32.png")
+                    :icon (jfx/image "rocket-32.png")
                     :exit-on-close true
                     :scene (jfx/scene
                             (jfx/border-pane :center split-pane

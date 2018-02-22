@@ -8,6 +8,6 @@
                  [slingshot "0.12.2"]]
   :main windsorsolutions.xmltool.main
   :launch4j-config-file "resources/launch4j-config.xml"
-
+  :resource-paths ["resources"]
   :profiles {:uberjar {:aot :all}
              :dev {:source-paths ["dev"]}})
