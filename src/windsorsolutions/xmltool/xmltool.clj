@@ -173,7 +173,11 @@
   created, messages about the progress of this process are posted to the
   provided message queue ('msg-q'). Once all of the data has been processed, a
   final messages with the type :complete is posted to the message queue."
-  [tree-table xml-file-path node-count-atom children-count-atom msg-q]
+  [tree-table xml-file-path node-count-atom children-count-atom msg-q info-panel]
+
+  (jfx/run
+    ;;(.setProgress (:progress-bar info-panel) nil)
+    (.setText (:progress-text info-panel) "Reading XML Document"))
 
   ;; start parsing our data and building the tree
   (parse-xml-data tree-table xml-file-path msg-q)
@@ -195,6 +199,22 @@
       (queue-complete-message msg-q
                               (str "Document parsed with " (inc @children-count-atom) " nodes")))))
 
+(defn status-panel
+  "Creates a new status panel and returns a map containing the components."
+  []
+  (let [text-pane (jfx/text-pane :insets (jfx/insets 5 5 5 5))
+        progress-bar (jfx/progress-bar)
+        progress-text (jfx/label)]
+    {:component (jfx/vbox
+                 [(jfx/vgrow-component
+                   (jfx/scroll-pane text-pane :fit-to-width true :fit-to-height true)
+                   :priority :always)
+                  (jfx/hbox [progress-bar progress-text]
+                            :spacing 8 :insets (jfx/insets 5 5 5 5))])
+     :progress-bar progress-bar
+     :progress-text progress-text
+     :text-pane text-pane}))
+
 (defn new-window
   "Creates a new XMLTool window, begins parsing the provided XML file and makes
   the window visible. Returns a map with information about the window."
@@ -213,13 +233,13 @@
                     :root-expanded true)
         window-atom (atom nil)
         node-count (atom 0)
-        children-count (atom 0)]
+        children-count (atom 0)
+        info-panel (status-panel)]
 
     ;; show our window and set our reference
     (jfx/run
-      (let [info-panel (jfx/text-pane)
-            split-pane (jfx/split-pane
-                        [(:object tree-table) (jfx/scroll-pane info-panel :fit-to-width true)]
+      (let [split-pane (jfx/split-pane
+                        [(:component tree-table) (:component info-panel)]
                         :orientation :vertical)
             window (jfx/window
                     :title "XMLTool" :width 700 :height 900
@@ -236,7 +256,11 @@
 
               ;; display the text message
               (:text message)
-              (jfx/run (jfx/add-text info-panel message))
+              (do (jfx/run (jfx/add-text (:text-pane info-panel) message))
+                  (if (= :complete (:type message))
+                    (jfx/run
+                      (.setProgress (:progress-bar info-panel) 1)
+                      (.setText (:progress-text info-panel) "Document processed"))))
 
               ;; update our progress counts
               (= :tree-progress (:type message))
@@ -256,13 +280,14 @@
 
       ;; build the tree of XML data
       (future
-        (start-xml-parsing tree-table xml-file-path node-count children-count info-q))
+        (start-xml-parsing tree-table xml-file-path node-count children-count info-q info-panel))
 
       ;; prompt for a file
       (jfx/run
         (jfx/open-file @window-atom
                        #(if %1
-                          (future (start-xml-parsing tree-table %1 node-count children-count info-q))
+                          (future
+                            (start-xml-parsing tree-table %1 node-count children-count info-q info-panel))
                           (jfx/close-window @window-atom))
                        :title "Select an XML File to Inspect"
                        :filters (jfx/file-chooser-extension-filter "XML Files" "*.xml"))))
