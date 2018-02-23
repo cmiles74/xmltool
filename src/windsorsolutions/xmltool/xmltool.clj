@@ -14,6 +14,9 @@
    [windsorsolutions.xmltool.jfx :as jfx]
    [clojure.java.io :as io]))
 
+;;
+;; Tree node to back our tree nodes
+;;
 
 (defprotocol tree-node-protocol
   "Protocol all of our tree nodes must implement."
@@ -25,6 +28,19 @@
   tree-node-protocol
   (getName [this] keyname)
   (getValue [this] value))
+
+(defn tree-node-cell-renderer
+  "Provides a renderer for a tree table column that will apply the provided
+  'value-fn' to the backing data object of the row's cell."
+  [value-fn]
+  (partial jfx/string-wrapper-ro
+     #(if (instance? tree-node %1)
+        (value-fn %1)
+        (str %1))))
+
+;;
+;; Functions for posting messages to our queues
+;;
 
 (defn queue-message
   "Adds a message map to the provided message queue."
@@ -56,6 +72,10 @@
   [msg-q text]
   (queue-message msg-q {:text text :type :complete}))
 
+;;
+;; Functions for building the tree nodes
+;;
+
 (defn build-tree-attr
   "Builds a sub-tree of attribute values and adds them to the tree node."
   [parent attrs]
@@ -81,7 +101,7 @@
   parent tree item. If a message queue ('msg-q') is provided, progress messages
   will be provided while the tree is being constructed."
   [parent xml-node & {:keys [msg-q]}]
-  
+
   ;; add our node to the count
   (if msg-q (queue-tree-message msg-q 1 0))
 
@@ -122,14 +142,9 @@
     (build-tree-item parent :recovered-content xml-node
                      {:attrs {:error "Content not attached to XML element"}})))
 
-(defn tree-node-cell-renderer
-  "Provides a renderer for a tree table column that will apply the provided
-  'value-fn' to the backing data object of the row's cell."
-  [value-fn]
-  (partial jfx/string-wrapper-ro
-     #(if (instance? tree-node %1)
-        (value-fn %1)
-        (str %1))))
+;;
+;; Functions for parsing the XML data
+;;
 
 (defn catch-non-fatal-xml-parse-errors
   "Wraps a function that may through XML parsing errors in an error handler that
@@ -175,24 +190,99 @@
                                     (:line exception) " column " (:column exception) ": "
                                     (.getMessage (:exception exception)))))))))
 
-(defn start-xml-parsing
-  "Begins parsing the XML data provided by 'xml-file-path' and, as that data is
-  processed, creates nodes and adds them to the provided
-  TreeTable ('tree-table') instance. As the nodes are created, a count is kept
-  via the 'node-count-atom' as well as an estimation of the nodes that will need
-  to be created ('children-count-atom'). As the XML file is parsed and the tree
-  created, messages about the progress of this process are posted to the
-  provided message queue ('msg-q'). Once all of the data has been processed, a
-  final messages with the type :complete is posted to the message queue."
-  [tree-table xml-file-path node-count-atom children-count-atom msg-q count-q info-panel]
+;;
+;; Functions to build UI components
+;;
 
-  (jfx/run
-    (.setText (:progress-text info-panel) "Reading XML Document"))
+(defn status-panel
+  "Creates a new status panel and returns a map containing the components with
+  the following keys: :component, :progress-bar :progress-text :text-pane."
+  []
+  (let [text-pane (jfx/text-pane :insets (jfx/insets 5 5 5 5))
+        progress-bar (jfx/progress-bar)
+        progress-text (jfx/label)]
+    {:component (jfx/vbox
+                 [(jfx/vgrow-component
+                   (jfx/scroll-pane text-pane :fit-to-width true :fit-to-height true)
+                   :priority :always)
+                  (jfx/hbox [progress-bar progress-text]
+                            :spacing 8 :insets (jfx/insets 5 5 5 5))])
+     :progress-bar progress-bar
+     :progress-text progress-text
+     :text-pane text-pane}))
 
-  ;; start parsing our data and building the tree
-  (future (parse-xml-data tree-table xml-file-path msg-q count-q))
+(defn window-panel
+  "Creates a new panel for the main window and returns a map containing the
+  components with the following keys: :info-panel, :tree-table, :split-pane
+  and :component, which is a component containing them all."
+  []
+  (let [info-panel (status-panel)
+        tree-table (jfx/tree-table
+                    (tree-node. "Root" nil)
+                    (list
+                     (jfx/tree-table-column
+                      "Name" 250 (tree-node-cell-renderer #(.getName %1)))
+                     (jfx/tree-table-column
+                      "Value"428 (tree-node-cell-renderer #(.getValue %1))))
+                    :root-visible false
+                    :root-expanded true)
+        split-pane (jfx/split-pane
+                    [(:component tree-table) (:component info-panel)]
+                    :orientation :vertical)]
+    {:info-panel info-panel
+     :tree-table tree-table
+     :split-pane split-pane
+     :component (jfx/border-pane :center split-pane
+                                 :insets (jfx/insets 10 10 10 10 ))}))
 
-  ;; loop the see if we've completed building our tree
+;;
+;; Functions for handling the message queues
+;;
+
+(defn handle-count-queue
+  "Starts an asynchronous loop that monitors the provided channel (count-q) and
+  updates the provided atoms (node-count-atom and children-count-atom) to
+  reflect the number of nodes created and the number we expect to construct."
+  [node-count-atom children-count-atom count-q]
+  (async/go-loop [message (async/<! count-q)]
+
+    ;; update our progress counts
+    (if (= :tree-progress (:type message))
+      (do (swap! node-count-atom #(+ %1 (:nodes-added message)))
+          (swap! children-count-atom #(+ %1 (:children-count message)))))
+    (recur (async/<! count-q))))
+
+(defn handle-info-queue
+  "Starts an asynchronous loop that monitors the provided channel (info-q) and
+  updates the provided information panel (info-q) of UI components."
+  [info-panel info-q]
+  (async/go-loop [message (async/<! info-q)]
+    (cond
+
+      ;; display the text message in the console area
+      (:text message)
+      (do (jfx/run (jfx/add-text (:text-pane info-panel) message))
+
+          ;; processing complete, update the progress bar
+          (if (= :complete (:type message))
+            (jfx/run
+              (.setProgress (:progress-bar info-panel) 1)
+              (.setText (:progress-text info-panel) "Document processed"))))
+
+      ;; update the text next to the progress bar
+      (= :status (:type message))
+      (do
+        (info (:content message))
+        (jfx/run (.setText (:progress-text info-panel) (:content message)))))
+    (recur (async/<! info-q))))
+
+(defn monitor-for-completion
+  "Starts an asynchronous loop that monitors the provided atoms until they
+  indicate that all of the nodes of XML data have been processed. As nodes are
+  processed, the UI components in the provided info-panel will be updated. Once
+  processing has been completed, an update message is posted to the provided
+  info-q channel."
+  [info-panel node-count-atom children-count-atom info-q]
   (async/go
     (loop [last-incoming-count -1]
 
@@ -202,7 +292,8 @@
       ;; update the progress bar status
       (if (not= -1 last-incoming-count)
         (jfx/run
-          (.setProgress (:progress-bar info-panel) (float (/ @node-count-atom (inc @children-count-atom))))
+          (.setProgress (:progress-bar info-panel)
+                        (float (/ @node-count-atom (inc @children-count-atom))))
           (.setText (:progress-text info-panel)
                     (str "Processing document, added " @node-count-atom
                          " of ~" (inc @children-count-atom) " nodes..."))))
@@ -220,50 +311,41 @@
 
     ;; post completion message to the queue
     (if (= 0 @children-count-atom)
-      (queue-complete-message msg-q (str "Document could not be parsed!"))
+      (queue-complete-message info-q (str "Document could not be parsed!"))
       (queue-complete-message
-       msg-q (str "Document parsed with " (inc @children-count-atom) " nodes")))))
+       info-q (str "Document parsed with " (inc @children-count-atom) " nodes")))))
 
-(defn status-panel
-  "Creates a new status panel and returns a map containing the components."
-  []
-  (let [text-pane (jfx/text-pane :insets (jfx/insets 5 5 5 5))
-        progress-bar (jfx/progress-bar)
-        progress-text (jfx/label)]
-    {:component (jfx/vbox
-                 [(jfx/vgrow-component
-                   (jfx/scroll-pane text-pane :fit-to-width true :fit-to-height true)
-                   :priority :always)
-                  (jfx/hbox [progress-bar progress-text]
-                            :spacing 8 :insets (jfx/insets 5 5 5 5))])
-     :progress-bar progress-bar
-     :progress-text progress-text
-     :text-pane text-pane}))
+;;
+;; Functions to create the main window
+;;
 
 (defn new-window
   "Creates a new XMLTool window, begins parsing the provided XML file and makes
-  the window visible. Returns a map with information about the window."
+  the window visible. If no file path is provided, then a file chooser will be
+  displayed. Returns a map with information about the window."
   [xml-file-path]
 
   ;; create our table and reference to hold our window
-  (let [info-q (async/chan (async/buffer 500) nil #(warn %1))
+  (let [
+        ;; we're going to track nodes and children as we add them
         count-q (async/chan (async/buffer 500) nil #(warn %1))
-        tree-table (jfx/tree-table
-                    (tree-node. "Root" nil)
-                    (list
-                     (jfx/tree-table-column
-                      "Name" 250 (tree-node-cell-renderer #(.getName %1)))
-                     (jfx/tree-table-column
-                      "Value"428 (tree-node-cell-renderer #(.getValue %1))))
-                    :root-visible false
-                    :root-expanded true)
-        window-atom (atom nil)
         node-count (atom 0)
         children-count (atom 0)
-        info-panel (status-panel)
-        split-pane (jfx/split-pane
-                    [(:component tree-table) (:component info-panel)]
-                    :orientation :vertical)]
+
+        ;; we're going to send messages to update the progress UI
+        info-q (async/chan (async/buffer 500) nil #(warn %1))
+
+        ;; main window panel
+        panel (window-panel)
+
+        ;; we'll return a handle on our main window
+        window-atom (atom nil)
+
+        ;; function to start processing an XML file
+        start-fn (fn [file]
+                   (jfx/run (.setText (:progress-text (:info-panel panel))
+                                      "Reading XML Document"))
+                   (future (parse-xml-data (:tree-table panel) file info-q count-q)))]
 
     ;; create the main window
     (jfx/run
@@ -271,67 +353,34 @@
                     :title "XMLTool" :width 700 :height 900
                     :icon (jfx/image "rocket-32.png")
                     :exit-on-close true
-                    :scene (jfx/scene
-                            (jfx/border-pane :center split-pane
-                                             :insets (jfx/insets 10 10 10 10 ))))]
+                    :scene (jfx/scene (:component panel)))]
 
         ;; display our window and set the divider location
         (jfx/show-window window)
-        (jfx/set-split-pane-divider-positions split-pane [0 0.9])
+        (jfx/set-split-pane-divider-positions (:split-pane panel) [0 0.9])
 
         ;; update our reference with our items
         (reset! window-atom window)))
 
+    ;; if we have a file, start building that tree!
     (if xml-file-path
-
-      ;; build the tree of XML data
-      (future
-        (start-xml-parsing tree-table xml-file-path node-count children-count info-q count-q info-panel))
+      (start-fn xml-file-path)
 
       ;; prompt for a file
       (jfx/run
         (jfx/open-file @window-atom
-                       #(if %1
-                          (future
-                            (start-xml-parsing tree-table %1 node-count children-count info-q count-q info-panel))
-                          (jfx/close-window @window-atom))
-                       :title "Select an XML File to Inspect"
-                       :filters (jfx/file-chooser-extension-filter "XML Files" "*.xml"))))
+                       #(if %1 (start-fn %1) (jfx/close-window @window-atom))
+         :title "Select an XML File to Inspect"
+         :filters (jfx/file-chooser-extension-filter "XML Files" "*.xml"))))
 
     ;; loop to handle the node counting messages
-    (async/go-loop [message (async/<! count-q)]
-
-      ;; update our progress counts
-      (if (= :tree-progress (:type message))
-        (do (swap! node-count #(+ %1 (:nodes-added message)))
-            (swap! children-count #(+ %1 (:children-count message)))))
-
-      (recur (async/<! count-q)))
-
+    (handle-count-queue node-count children-count count-q)
 
     ;; loop to handle update messages
-    (async/go-loop [message (async/<! info-q)]
+    (handle-info-queue (:info-panel panel) info-q)
 
-      ;; give the ui dispatch thread a little room to breath
-      ;;(async/<! (async/timeout 10))
-
-      (cond
-
-        ;; display the text message
-        (:text message)
-        (do (jfx/run (jfx/add-text (:text-pane info-panel) message))
-            (if (= :complete (:type message))
-              (jfx/run
-                (.setProgress (:progress-bar info-panel) 1)
-                (.setText (:progress-text info-panel) "Document processed"))))
-
-        ;; update the status message
-        (= :status (:type message))
-        (do
-          (info (:content message))
-          (jfx/run (.setText (:progress-text info-panel) (:content message)))))
-
-      (recur (async/<! info-q)))
+    ;; loop to monitor for completion
+    (monitor-for-completion (:info-panel panel) node-count children-count info-q)
 
     window-atom))
 
