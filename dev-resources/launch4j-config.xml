@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <launch4jConfig>
-  <dontWrapJar>true</dontWrapJar>
+  <dontWrapJar>false</dontWrapJar>
   <headerType>gui</headerType>
   <jar>../target/xmltool-0.1-SNAPSHOT-standalone.jar</jar>
   <outfile>../target/xmltool.exe</outfile>
