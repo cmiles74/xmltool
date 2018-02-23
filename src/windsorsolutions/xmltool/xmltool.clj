@@ -80,15 +80,14 @@
   "Builds a tree node for the provided node of XML data and adds it to the
   parent tree item. If a message queue ('msg-q') is provided, progress messages
   will be provided while the tree is being constructed."
-  [parent xml-node  & {:keys [msg-q]}]
-
-  ;; increment our count of tree nodes
+  [parent xml-node & {:keys [msg-q]}]
+  
+  ;; add our node to the count
   (if msg-q (queue-tree-message msg-q 1 0))
 
-  (if
-
-    ;; our xml-node is in fact an xml-node
-    (and (contains? xml-node :tag) (contains? xml-node :attrs) (contains? xml-node :content))
+  ;; our xml-node is in fact an xml-node
+  (if (and (map? xml-node) (contains? xml-node :tag) (contains? xml-node :attrs)
+           (contains? xml-node :content))
     (cond
 
       ;; node has nil or one string of content
@@ -100,18 +99,30 @@
       ;; node content is a single map
       (map? (:content xml-node))
       (let [tree-node (build-tree-item parent (:tag xml-node) nil xml-node)]
+        (if msg-q (queue-tree-message msg-q 1 1))
         (build-tree-node tree-node (:content xml-node) :msg-q msg-q))
 
       ;; node content is a vector
       (vector? (:content xml-node))
-      (let [tree-node (build-tree-item parent (:tag xml-node) nil xml-node)]
-        (if msg-q (queue-tree-message msg-q 0 (count (:content xml-node))))
-        (future (doall (map #(build-tree-node tree-node %1 :msg-q msg-q) (:content xml-node))))))
+      (cond
 
-    ;; we don't know what this node is!
-    (warn "Can't build node from " (class xml-node))))
+        ;; if it's not a map, concatenate the content
+        (not (map? (first (:content xml-node))))
+        (let [content (apply str (interpose ", " (:content xml-node)))]
+          (build-tree-item parent (:tag xml-node) content xml-node))
 
-(defn tree-node-cell-renderer 
+
+        ;; build nodes for the children
+        :else
+        (let [tree-node (build-tree-item parent (:tag xml-node) nil xml-node)]
+          (if msg-q (queue-tree-message msg-q 0 (count (:content xml-node))))
+          (doall (map #(build-tree-node tree-node %1 :msg-q msg-q) (:content xml-node))))))
+
+    ;; we don't know what this node is, add a "junk" node
+    (build-tree-item parent :recovered-content xml-node
+                     {:attrs {:error "Content not attached to XML element"}})))
+
+(defn tree-node-cell-renderer
   "Provides a renderer for a tree table column that will apply the provided
   'value-fn' to the backing data object of the row's cell."
   [value-fn]
@@ -138,11 +149,11 @@
   "Begins parsing the data from the File ('file') and populates the provided
   'tree-table' with nodes created from that data. As parsing progresses,
   messages are posted to the provided message queue ('info-q')."
-  [tree-table file info-q]
+  [tree-table file info-q count-q]
   (sling/try+
    (queue-info-message info-q (str "Loading the file at " (.getAbsolutePath file) "..."))
    (catch-non-fatal-xml-parse-errors
-    info-q #(build-tree-node (:root tree-table) (xml/parse-xml file) :msg-q info-q))
+    info-q #(build-tree-node (:root tree-table) (xml/parse-xml file) :msg-q count-q))
    (catch #(= :fatal (:type %1)) exception
        (warn (str (:exception exception)))
        (queue-error-message info-q
@@ -154,7 +165,7 @@
        (sling/try+
         (queue-info-message info-q (str "Attempting to scrub bad characters from the XML data"))
         (catch-non-fatal-xml-parse-errors
-         info-q #(build-tree-node (:root tree-table) (xml/parse-xml (xml/clean-xml file)) :msg-q info-q))
+         info-q #(build-tree-node (:root tree-table) (xml/parse-xml (xml/clean-xml file)) :msg-q count-q))
 
         ;; well, now we know we really can't parse this file :-(
         (catch #(= :fatal (:type %1)) exception
@@ -173,31 +184,45 @@
   created, messages about the progress of this process are posted to the
   provided message queue ('msg-q'). Once all of the data has been processed, a
   final messages with the type :complete is posted to the message queue."
-  [tree-table xml-file-path node-count-atom children-count-atom msg-q info-panel]
+  [tree-table xml-file-path node-count-atom children-count-atom msg-q count-q info-panel]
 
   (jfx/run
-    ;;(.setProgress (:progress-bar info-panel) nil)
     (.setText (:progress-text info-panel) "Reading XML Document"))
 
   ;; start parsing our data and building the tree
-  (parse-xml-data tree-table xml-file-path msg-q)
+  (future (parse-xml-data tree-table xml-file-path msg-q count-q))
 
   ;; loop the see if we've completed building our tree
   (async/go
     (loop [last-incoming-count -1]
 
       ;; we don't need to in a tight loop
-      (async/<! (async/timeout 500))
+      (async/<! (async/timeout 100))
 
-      ;; when our incoming node count stops changing, processing is complete
-      (if (not= last-incoming-count (- (inc @children-count-atom) @node-count-atom))
-        (recur (- (inc @children-count-atom) @node-count-atom))))
+      ;; update the progress bar status
+      (if (not= -1 last-incoming-count)
+        (jfx/run
+          (.setProgress (:progress-bar info-panel) (float (/ @node-count-atom (inc @children-count-atom))))
+          (.setText (:progress-text info-panel)
+                    (str "Processing document, added " @node-count-atom
+                         " of ~" (inc @children-count-atom) " nodes..."))))
+
+      ;; if we haven't started parsing nodes out, continue to loop
+      (if (and (= -1 last-incoming-count) (= 0 @node-count-atom))
+        (recur -1)
+
+        ;; when we have built all nodes or our incoming node count stops
+        ;; changing, processing is complete
+        (if (or (not= 0 (- (inc @children-count-atom) @node-count-atom))
+                (not= last-incoming-count (- (inc @children-count-atom) @node-count-atom)))
+          ;;(not= last-incoming-count (- (inc @children-count-atom) @node-count-atom))
+          (recur (- (inc @children-count-atom) @node-count-atom)))))
 
     ;; post completion message to the queue
     (if (= 0 @children-count-atom)
       (queue-complete-message msg-q (str "Document could not be parsed!"))
-      (queue-complete-message msg-q
-                              (str "Document parsed with " (inc @children-count-atom) " nodes")))))
+      (queue-complete-message
+       msg-q (str "Document parsed with " (inc @children-count-atom) " nodes")))))
 
 (defn status-panel
   "Creates a new status panel and returns a map containing the components."
@@ -222,6 +247,7 @@
 
   ;; create our table and reference to hold our window
   (let [info-q (async/chan (async/buffer 500) nil #(warn %1))
+        count-q (async/chan (async/buffer 500) nil #(warn %1))
         tree-table (jfx/tree-table
                     (tree-node. "Root" nil)
                     (list
@@ -234,14 +260,14 @@
         window-atom (atom nil)
         node-count (atom 0)
         children-count (atom 0)
-        info-panel (status-panel)]
+        info-panel (status-panel)
+        split-pane (jfx/split-pane
+                    [(:component tree-table) (:component info-panel)]
+                    :orientation :vertical)]
 
-    ;; show our window and set our reference
+    ;; create the main window
     (jfx/run
-      (let [split-pane (jfx/split-pane
-                        [(:component tree-table) (:component info-panel)]
-                        :orientation :vertical)
-            window (jfx/window
+      (let [window (jfx/window
                     :title "XMLTool" :width 700 :height 900
                     :icon (jfx/image "rocket-32.png")
                     :exit-on-close true
@@ -249,27 +275,7 @@
                             (jfx/border-pane :center split-pane
                                              :insets (jfx/insets 10 10 10 10 ))))]
 
-        ;; loop to handle update messages
-        (async/go-loop [message (async/<! info-q)]
-          (when message
-            (cond
-
-              ;; display the text message
-              (:text message)
-              (do (jfx/run (jfx/add-text (:text-pane info-panel) message))
-                  (if (= :complete (:type message))
-                    (jfx/run
-                      (.setProgress (:progress-bar info-panel) 1)
-                      (.setText (:progress-text info-panel) "Document processed"))))
-
-              ;; update our progress counts
-              (= :tree-progress (:type message))
-              (do
-                (swap! node-count #(+ %1 (:nodes-added message)))
-                (swap! children-count #(+ %1 (:children-count message)))))
-            (recur (async/<! info-q))))
-
-        ;; display our window
+        ;; display our window and set the divider location
         (jfx/show-window window)
         (jfx/set-split-pane-divider-positions split-pane [0 0.9])
 
@@ -280,19 +286,54 @@
 
       ;; build the tree of XML data
       (future
-        (start-xml-parsing tree-table xml-file-path node-count children-count info-q info-panel))
+        (start-xml-parsing tree-table xml-file-path node-count children-count info-q count-q info-panel))
 
       ;; prompt for a file
       (jfx/run
         (jfx/open-file @window-atom
                        #(if %1
                           (future
-                            (start-xml-parsing tree-table %1 node-count children-count info-q info-panel))
+                            (start-xml-parsing tree-table %1 node-count children-count info-q count-q info-panel))
                           (jfx/close-window @window-atom))
                        :title "Select an XML File to Inspect"
                        :filters (jfx/file-chooser-extension-filter "XML Files" "*.xml"))))
 
-     window-atom))
+    ;; loop to handle the node counting messages
+    (async/go-loop [message (async/<! count-q)]
+
+      ;; update our progress counts
+      (if (= :tree-progress (:type message))
+        (do (swap! node-count #(+ %1 (:nodes-added message)))
+            (swap! children-count #(+ %1 (:children-count message)))))
+
+      (recur (async/<! count-q)))
+
+
+    ;; loop to handle update messages
+    (async/go-loop [message (async/<! info-q)]
+
+      ;; give the ui dispatch thread a little room to breath
+      ;;(async/<! (async/timeout 10))
+
+      (cond
+
+        ;; display the text message
+        (:text message)
+        (do (jfx/run (jfx/add-text (:text-pane info-panel) message))
+            (if (= :complete (:type message))
+              (jfx/run
+                (.setProgress (:progress-bar info-panel) 1)
+                (.setText (:progress-text info-panel) "Document processed"))))
+
+        ;; update the status message
+        (= :status (:type message))
+        (do
+          (info (:content message))
+          (jfx/run (.setText (:progress-text info-panel) (:content message)))))
+
+      (recur (async/<! info-q)))
+
+    window-atom))
 
 (defn xml-tool
   "Creates a new XMLTool instance. This is the main entry point for starting the
