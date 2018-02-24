@@ -229,6 +229,7 @@
         split-pane (jfx/split-pane
                     [(:component tree-table) (:component info-panel)]
                     :orientation :vertical)]
+    (jfx/set-split-pane-divider-positions split-pane [0 0.9])
     {:info-panel info-panel
      :tree-table tree-table
      :split-pane split-pane
@@ -354,10 +355,13 @@
                     :icon (jfx/image "rocket-32.png")
                     :exit-on-close true
                     :scene (jfx/scene (:component panel)))]
-
-        ;; display our window and set the divider location
         (jfx/show-window window)
-        (jfx/set-split-pane-divider-positions (:split-pane panel) [0 0.9])
+
+        ;; work around some weird janky-ness on Gnome
+        (async/go (async/<! (async/timeout 100))
+                  (jfx/run
+                    (jfx/set-split-pane-divider-positions (:split-pane panel) [0 0.9])
+                    (.sizeToScene window)))
 
         ;; update our reference with our items
         (reset! window-atom window)))
@@ -368,6 +372,7 @@
 
       ;; prompt for a file
       (jfx/run
+        (jfx/set-split-pane-divider-positions (:split-pane panel) [0 0.9])
         (jfx/open-file @window-atom
                        #(if %1 (start-fn %1) (jfx/close-window @window-atom))
          :title "Select an XML File to Inspect"
