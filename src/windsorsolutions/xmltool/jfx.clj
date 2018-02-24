@@ -71,16 +71,15 @@
   "Adds the provided leaf or leaves TreeItem to the provided parent TreeItem."
   [parent leaves]
   (let [children (.getChildren parent)]
-    (run
-      (if (sequential? leaves)
-        (.addAll children leaves)
-        (.add children leaves)))))
+    (if (sequential? leaves)
+      (run (.addAll children leaves))
+      (run (.add children leaves)))))
 
 (defn remove-leaves
   "Removes all of the leaves from the provided parent."
   [parent]
   (if (seq (.getChildren parent))
-    (.removeAll (.getChildren parent))))
+    (run (.removeAll (.getChildren parent)))))
 
 (defn tree-item
   "Returns a new TreeItem instance that wraps the provided data object. If a
@@ -190,8 +189,8 @@
   [components]
   (let [group (Group.)]
     (if (sequential? components)
-      (.addAll (.getChildrent group) components)
-      (.add (.getChildren group) components))
+      (run (.addAll (.getChildrent group) components))
+      (run (.add (.getChildren group) components)))
     group))
 
 (defn text
@@ -208,10 +207,14 @@
   "Adds the provides Text instances to the panel."
   [text-pane text-seq]
   (if (sequential? text-seq)
-    (.addAll (.getChildren text-pane)
-             (map #(text (str (:text %1) "\n")) text-seq))
-    (.add (.getChildren text-pane)
-          (text (str (:text text-seq) "\n")))))
+    (run (.addAll (.getChildren text-pane)
+                 (map #(text (str (:text %1) "\n")) text-seq)))
+    (run (.add (.getChildren text-pane)
+               (text (str (:text text-seq) "\n"))))))
+
+(defn set-text
+  [component text]
+  (run (.setText component text)))
 
 (defn set-split-pane-divider-positions
   "Sets the divider positions for the provided SplitPane instance. The divider
@@ -222,9 +225,9 @@
   (set-split-pane-divider-positions split-pane [[0 0.85]])"
   [split-pane div-positions]
   (if (sequential? (first div-positions))
-    #(.setDividerPosition split-pane (first %1) (second %1))
-    (.setDividerPosition split-pane
-                         (first div-positions) (second div-positions))))
+    (run #(.setDividerPosition split-pane (first %1) (second %1)))
+    (run (.setDividerPosition split-pane
+                              (first div-positions) (second div-positions)))))
 
 (defn split-pane
   "Returns a new SplitPane instance. The :orientation may be :horizontal
@@ -236,7 +239,7 @@
     (if (= :vertical orientation)
       (.setOrientation split-pane Orientation/VERTICAL))
     (if (seq children-seq)
-      (.addAll (.getItems split-pane) children-seq))
+      (run (.addAll (.getItems split-pane) children-seq)))
     split-pane))
 
 (defn border-pane
@@ -291,8 +294,10 @@
 
 (defn show-window
   "Shows the provided window (Stage) instance."
-  [stage]
-  (run (.show stage))
+  [stage & {:keys [pack]}]
+  (run
+    (if pack (.sizeToScene stage))
+    (.show stage))
   stage)
 
 (defn close-window
@@ -319,8 +324,8 @@
     (if title (.setTitle chooser title))
     (if filters
       (if (sequential? filters)
-        (.addAll (.getExtensionFilters chooser) filters)
-        (.add (.getExtensionFilters chooser) filters)))
+        (run (.addAll (.getExtensionFilters chooser) filters))
+        (run (.add (.getExtensionFilters chooser) filters))))
     chooser))
 
 (defn open-file
@@ -335,8 +340,12 @@
 (defn progress-bar
   [& {:keys [progress]}]
   (let [bar (ProgressBar. )]
-    (if progress (.setProgress bar progress))
+    (if progress (run (.setProgress bar progress)))
     bar))
+
+(defn set-progress
+  [bar progress]
+  (run (.setProgress bar progress)))
 
 (defn priority-for-key
   "Returns a Priority for the provided key. Valid keys are :always, :never
@@ -370,8 +379,8 @@
     (if insets (.setPadding box insets))
     (if components
       (if (sequential? components)
-        (.addAll (.getChildren box) components)
-        (.add (.getChildren box) components)))
+        (run (.addAll (.getChildren box) components))
+        (run (.add (.getChildren box) components))))
     box))
 
 (defn vbox
@@ -381,6 +390,6 @@
     (if insets (.setPadding box insets))
     (if components
       (if (sequential? components)
-        (.addAll (.getChildren box) components)
-        (.add (.getChildren box) components)))
+        (run (.addAll (.getChildren box) components))
+        (run (.add (.getChildren box) components))))
     box))

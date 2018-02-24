@@ -1,4 +1,4 @@
-(ns windsorsolutions.xmltool.xmltool
+3(ns windsorsolutions.xmltool.xmltool
   (:require
    [taoensso.timbre :as timbre
     :refer (log  trace  debug  info  warn  error  fatal  report
@@ -83,7 +83,8 @@
     (let [attr-node (jfx/tree-item (tree-node. "Attributes" nil) parent)]
       (jfx/add-leaves
        attr-node
-       (map #(jfx/tree-item (tree-node. (name (key %1)) (val %1))) attrs)))))
+       (map #(jfx/tree-item (tree-node. (name (key %1)) (val %1))) attrs)))
+    parent))
 
 (defn build-tree-item
   "Builds a new tree item with the provided key and value and then adds it to
@@ -140,13 +141,14 @@
 
     ;; we don't know what this node is, add a "junk" node
     (build-tree-item parent :recovered-content xml-node
-                     {:attrs {:error "Content not attached to XML element"}})))
+{:attrs {:error "Content not attached to XML element"}})))
 
 ;;
 ;; Functions for parsing the XML data
 ;;
 
 (defn catch-non-fatal-xml-parse-errors
+
   "Wraps a function that may through XML parsing errors in an error handler that
   will catch and log all non-fatal exceptions to the provided message queue."
   [msg-q work-fn]
@@ -170,7 +172,6 @@
    (catch-non-fatal-xml-parse-errors
     info-q #(build-tree-node (:root tree-table) (xml/parse-xml file) :msg-q count-q))
    (catch #(= :fatal (:type %1)) exception
-       (warn (str (:exception exception)))
        (queue-error-message info-q
                             (str "Fatal error encountered while parsing line "
                                  (:line exception) " column " (:column exception) ": "
@@ -184,7 +185,6 @@
 
         ;; well, now we know we really can't parse this file :-(
         (catch #(= :fatal (:type %1)) exception
-          (warn (str (:exception exception)))
           (queue-error-message info-q
                                (str "Fatal error encountered while parsing line "
                                     (:line exception) " column " (:column exception) ": "
@@ -229,7 +229,7 @@
         split-pane (jfx/split-pane
                     [(:component tree-table) (:component info-panel)]
                     :orientation :vertical)]
-    (jfx/set-split-pane-divider-positions split-pane [0 0.9])
+    (jfx/set-split-pane-divider-positions split-pane [0 0.85])
     {:info-panel info-panel
      :tree-table tree-table
      :split-pane split-pane
@@ -262,19 +262,16 @@
 
       ;; display the text message in the console area
       (:text message)
-      (do (jfx/run (jfx/add-text (:text-pane info-panel) message))
+      (do (jfx/add-text (:text-pane info-panel) message)
 
           ;; processing complete, update the progress bar
-          (if (= :complete (:type message))
-            (jfx/run
-              (.setProgress (:progress-bar info-panel) 1)
-              (.setText (:progress-text info-panel) "Document processed"))))
+          (= :complete (:type message))
+          (do (jfx/set-progress (:progress-bar info-panel) 1)
+              (jfx/set-text (:progress-text info-panel) "Document processed!")))
 
       ;; update the text next to the progress bar
       (= :status (:type message))
-      (do
-        (info (:content message))
-        (jfx/run (.setText (:progress-text info-panel) (:content message)))))
+      (jfx/set-text (:progress-text info-panel) (:content message)))
     (recur (async/<! info-q))))
 
 (defn monitor-for-completion
@@ -292,12 +289,11 @@
 
       ;; update the progress bar status
       (if (not= -1 last-incoming-count)
-        (jfx/run
-          (.setProgress (:progress-bar info-panel)
-                        (float (/ @node-count-atom (inc @children-count-atom))))
-          (.setText (:progress-text info-panel)
-                    (str "Processing document, added " @node-count-atom
-                         " of ~" (inc @children-count-atom) " nodes..."))))
+        (do (jfx/set-progress (:progress-bar info-panel)
+                              (float (/ @node-count-atom (inc @children-count-atom))))
+            (jfx/set-text (:progress-text info-panel)
+                          (str "Processing document, added " @node-count-atom
+                               " of ~" (inc @children-count-atom) " nodes..."))))
 
       ;; if we haven't started parsing nodes out, continue to loop
       (if (and (= -1 last-incoming-count) (= 0 @node-count-atom))
@@ -307,7 +303,6 @@
         ;; changing, processing is complete
         (if (or (not= 0 (- (inc @children-count-atom) @node-count-atom))
                 (not= last-incoming-count (- (inc @children-count-atom) @node-count-atom)))
-          ;;(not= last-incoming-count (- (inc @children-count-atom) @node-count-atom))
           (recur (- (inc @children-count-atom) @node-count-atom)))))
 
     ;; post completion message to the queue
@@ -344,8 +339,8 @@
 
         ;; function to start processing an XML file
         start-fn (fn [file]
-                   (jfx/run (.setText (:progress-text (:info-panel panel))
-                                      "Reading XML Document"))
+                   (jfx/set-text (:progress-text (:info-panel panel))
+                                 "Reading XML Document")
                    (future (parse-xml-data (:tree-table panel) file info-q count-q)))]
 
     ;; create the main window
@@ -355,28 +350,26 @@
                     :icon (jfx/image "rocket-32.png")
                     :exit-on-close true
                     :scene (jfx/scene (:component panel)))]
-        (jfx/show-window window)
+        (jfx/show-window window :pack true)
 
         ;; work around some weird janky-ness on Gnome
         (async/go (async/<! (async/timeout 100))
-                  (jfx/run
-                    (jfx/set-split-pane-divider-positions (:split-pane panel) [0 0.9])
-                    (.sizeToScene window)))
+                  (jfx/set-split-pane-divider-positions (:split-pane panel) [0 0.85])
 
         ;; update our reference with our items
-        (reset! window-atom window)))
+        (reset! window-atom window))))
 
     ;; if we have a file, start building that tree!
     (if xml-file-path
       (start-fn xml-file-path)
 
       ;; prompt for a file
-      (jfx/run
-        (jfx/set-split-pane-divider-positions (:split-pane panel) [0 0.9])
-        (jfx/open-file @window-atom
-                       #(if %1 (start-fn %1) (jfx/close-window @window-atom))
-         :title "Select an XML File to Inspect"
-         :filters (jfx/file-chooser-extension-filter "XML Files" "*.xml"))))
+      (jfx/open-file @window-atom
+                     #(if %1
+                        (start-fn %1)
+                        (jfx/run (jfx/close-window @window-atom)))
+                     :title "Select an XML File to Inspect"
+                     :filters (jfx/file-chooser-extension-filter "XML Files" "*.xml")))
 
     ;; loop to handle the node counting messages
     (handle-count-queue node-count children-count count-q)
