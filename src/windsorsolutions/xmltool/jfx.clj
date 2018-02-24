@@ -7,7 +7,8 @@
                  spy get-env log-env)]
    [taoensso.timbre.profiling :as profiling
     :refer (pspy pspy* profile defnp p p*)]
-   [slingshot.slingshot :only [throw+ try+]])
+   [slingshot.slingshot :only [throw+ try+]]
+   [clojure.core.async :as async])
   (:import
    [javafx.application Application Platform]
    [javafx.beans.property ReadOnlyStringWrapper]
@@ -281,23 +282,34 @@
   'style' is provided, the Stage will be 'decorated'. The 'width' and 'height'
   values will be used to set the Stage's minimum width and height. If an Image
   is provided under the :icon key, it will be used as the icon in the title bar
-  window if the host operating system does that sort of thing."
+  window if the host operating system does that sort of thing.
+
+  This function returns a promise that may be de-referenced to get a handle on
+  the new window instance."
   [& {:keys [title scene style width height exit-on-close icon]}]
-  (let [stage (Stage. (if style style StageStyle/DECORATED))]
-    (if title (.setTitle stage title))
-    (if scene (.setScene stage scene))
-    (if width (.setMinWidth stage width))
-    (if height (.setMinHeight stage height))
-    (if exit-on-close (.setOnCloseRequest stage (exit-on-close-handler)))
-    (if icon (.add (.getIcons stage) icon))
-    stage))
+  (let [handle (promise)]
+    (run (let [stage (Stage. (if style style StageStyle/DECORATED))]
+           (if title (.setTitle stage title))
+           (if scene (.setScene stage scene))
+           (if width (.setMinWidth stage width))
+           (if height (.setMinHeight stage height))
+           (if exit-on-close (.setOnCloseRequest stage (exit-on-close-handler)))
+           (if icon (.add (.getIcons stage) icon))
+           (deliver handle stage)))
+    handle))
 
 (defn show-window
-  "Shows the provided window (Stage) instance."
-  [stage & {:keys [pack]}]
+  "Shows the provided window (Stage) instance. If the :pack key is set, the
+  \"sizeToScene\" will be called on the window before it is displayed. If
+  function is on the :after-fn key, it will be called after the window is
+  shown."
+  [stage & {:keys [pack after-fn]}]
   (run
     (if pack (.sizeToScene stage))
     (.show stage))
+  (if after-fn
+    (async/go (async/<! (async/timeout 100))
+              (after-fn)))
   stage)
 
 (defn close-window

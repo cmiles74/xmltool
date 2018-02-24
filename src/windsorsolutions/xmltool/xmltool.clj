@@ -200,7 +200,7 @@
   []
   (let [text-pane (jfx/text-pane :insets (jfx/insets 5 5 5 5))
         progress-bar (jfx/progress-bar)
-        progress-text (jfx/label)]
+        progress-text (jfx/label "Welcome to XML Tool!")]
     {:component (jfx/vbox
                  [(jfx/vgrow-component
                    (jfx/scroll-pane text-pane :fit-to-width true :fit-to-height true)
@@ -306,7 +306,7 @@
           (recur (- (inc @children-count-atom) @node-count-atom)))))
 
     ;; post completion message to the queue
-    (if (= 0 @children-count-atom)
+    (if (= 1 @node-count-atom)
       (queue-complete-message info-q (str "Document could not be parsed!"))
       (queue-complete-message
        info-q (str "Document parsed with " (inc @children-count-atom) " nodes")))))
@@ -314,6 +314,29 @@
 ;;
 ;; Functions to create the main window
 ;;
+
+(defn prompt-for-file
+  "Presents a the file chooser window, parented to the provided window. Once a
+  file is selected, that file is provided to the start-processing-fn."
+  [window start-processing-fn]
+  (jfx/open-file window
+                 #(if %1
+                    (start-processing-fn %1)
+                    (jfx/run (jfx/close-window window)))
+                 :title "Select an XML File to Inspect"
+                 :filters (jfx/file-chooser-extension-filter "XML Files" "*.xml")))
+
+(defn start-monitoring
+  [node-count children-count count-q info-q panel]
+
+  ;; loop to handle the node counting messages
+  (handle-count-queue node-count children-count count-q)
+
+  ;; loop to handle update messages
+  (handle-info-queue (:info-panel panel) info-q)
+
+  ;; loop to monitor for completion
+  (monitor-for-completion (:info-panel panel) node-count children-count info-q))
 
 (defn new-window
   "Creates a new XMLTool window, begins parsing the provided XML file and makes
@@ -334,53 +357,34 @@
         ;; main window panel
         panel (window-panel)
 
-        ;; we'll return a handle on our main window
-        window-atom (atom nil)
+        ;; create our window
+        window (jfx/window
+                :title "XMLTool" :width 700 :height 900
+                :icon (jfx/image "rocket-32.png")
+                :exit-on-close true
+                :scene (jfx/scene (:component panel)))
 
         ;; function to start processing an XML file
         start-fn (fn [file]
                    (jfx/set-text (:progress-text (:info-panel panel))
                                  "Reading XML Document")
-                   (future (parse-xml-data (:tree-table panel) file info-q count-q)))]
+                   (future (parse-xml-data (:tree-table panel) file info-q count-q))
+                   (start-monitoring node-count children-count count-q info-q panel))
 
-    ;; create the main window
-    (jfx/run
-      (let [window (jfx/window
-                    :title "XMLTool" :width 700 :height 900
-                    :icon (jfx/image "rocket-32.png")
-                    :exit-on-close true
-                    :scene (jfx/scene (:component panel)))]
-        (jfx/show-window window :pack true)
+        ;; function to start processing input or prompt for a file
+        acquire-file-fn (fn []
+                          (if xml-file-path
+                            (start-fn xml-file-path)
+                            (prompt-for-file @window start-fn)))]
 
-        ;; work around some weird janky-ness on Gnome
-        (async/go (async/<! (async/timeout 100))
-                  (jfx/set-split-pane-divider-positions (:split-pane panel) [0 0.85])
+    ;; display our window
+    (jfx/show-window @window
+                     :pack true
+                     :after-fn #(do (jfx/set-split-pane-divider-positions
+                                     (:split-pane panel) [0 0.85])
+                                    (acquire-file-fn)))
 
-        ;; update our reference with our items
-        (reset! window-atom window))))
-
-    ;; if we have a file, start building that tree!
-    (if xml-file-path
-      (start-fn xml-file-path)
-
-      ;; prompt for a file
-      (jfx/open-file @window-atom
-                     #(if %1
-                        (start-fn %1)
-                        (jfx/run (jfx/close-window @window-atom)))
-                     :title "Select an XML File to Inspect"
-                     :filters (jfx/file-chooser-extension-filter "XML Files" "*.xml")))
-
-    ;; loop to handle the node counting messages
-    (handle-count-queue node-count children-count count-q)
-
-    ;; loop to handle update messages
-    (handle-info-queue (:info-panel panel) info-q)
-
-    ;; loop to monitor for completion
-    (monitor-for-completion (:info-panel panel) node-count children-count info-q)
-
-    window-atom))
+    window))
 
 (defn xml-tool
   "Creates a new XMLTool instance. This is the main entry point for starting the
