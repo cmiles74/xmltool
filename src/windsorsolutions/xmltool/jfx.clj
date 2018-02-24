@@ -291,8 +291,8 @@
     (run (let [stage (Stage. (if style style StageStyle/DECORATED))]
            (if title (.setTitle stage title))
            (if scene (.setScene stage scene))
-           (if width (.setMinWidth stage width))
-           (if height (.setMinHeight stage height))
+           (if width (do (.setMinWidth stage width) (.setMaxWidth stage width)))
+           (if height (do (.setMinHeight stage height) (.setMaxHeight stage height)))
            (if exit-on-close (.setOnCloseRequest stage (exit-on-close-handler)))
            (if icon (.add (.getIcons stage) icon))
            (deliver handle stage)))
@@ -307,9 +307,7 @@
   (run
     (if pack (.sizeToScene stage))
     (.show stage))
-  (if after-fn
-    (async/go (async/<! (async/timeout 100))
-              (after-fn)))
+  (if after-fn (after-fn))
   stage)
 
 (defn close-window

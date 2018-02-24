@@ -229,6 +229,7 @@
         split-pane (jfx/split-pane
                     [(:component tree-table) (:component info-panel)]
                     :orientation :vertical)]
+    (.setPrefHeight (:component tree-table) Double/MAX_VALUE)
     (jfx/set-split-pane-divider-positions split-pane [0 0.85])
     {:info-panel info-panel
      :tree-table tree-table
@@ -380,9 +381,11 @@
     ;; display our window
     (jfx/show-window @window
                      :pack true
-                     :after-fn #(do (jfx/set-split-pane-divider-positions
-                                     (:split-pane panel) [0 0.85])
-                                    (acquire-file-fn)))
+                     :after-fn #(async/go
+                                  (jfx/set-split-pane-divider-positions
+                                   (:split-pane panel) [0 0.85])
+                                  ;;(async/<! (async/timeout 100))
+                                  (acquire-file-fn)))
 
     window))
 
