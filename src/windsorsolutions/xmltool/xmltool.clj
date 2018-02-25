@@ -323,7 +323,7 @@
   (jfx/open-file window
                  #(if %1
                     (start-processing-fn %1)
-                    (jfx/run (jfx/close-window window)))
+                    (jfx/close-window window))
                  :title "Select an XML File to Inspect"
                  :filters (jfx/file-chooser-extension-filter "XML Files" "*.xml")))
 
@@ -365,12 +365,12 @@
                 :exit-on-close true
                 :scene (jfx/scene (:component panel)))
 
-        ;; function to start processing an XML file
+        ;; function to start processing an XML file and monitoring queues
         start-fn (fn [file]
                    (jfx/set-text (:progress-text (:info-panel panel))
                                  "Reading XML Document")
                    (future (parse-xml-data (:tree-table panel) file info-q count-q))
-                   (start-monitoring node-count children-count count-q info-q panel))
+                   (future (start-monitoring node-count children-count count-q info-q panel)))
 
         ;; function to start processing input or prompt for a file
         acquire-file-fn (fn []
@@ -381,10 +381,9 @@
     ;; display our window
     (jfx/show-window @window
                      :pack true
-                     :after-fn #(async/go
+                     :after-fn #(do
                                   (jfx/set-split-pane-divider-positions
                                    (:split-pane panel) [0 0.85])
-                                  ;;(async/<! (async/timeout 100))
                                   (acquire-file-fn)))
 
     window))
