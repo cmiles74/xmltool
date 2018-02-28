@@ -101,7 +101,7 @@
   "Builds a tree node for the provided node of XML data and adds it to the
   parent tree item. If a message queue ('msg-q') is provided, progress messages
   will be provided while the tree is being constructed."
-  [parent xml-node & {:keys [msg-q]}]
+  [parent xml-node & {:keys [msg-q initial]}]
 
   ;; add our node to the count
   (if msg-q (queue-tree-message msg-q 1 0))
@@ -141,7 +141,7 @@
 
     ;; we don't know what this node is, add a "junk" node
     (build-tree-item parent :recovered-content xml-node
-{:attrs {:error "Content not attached to XML element"}})))
+                     {:attrs {:error "Content not attached to XML element"}})))
 
 ;;
 ;; Functions for parsing the XML data
@@ -181,7 +181,7 @@
        (sling/try+
         (queue-info-message info-q (str "Attempting to scrub bad characters from the XML data"))
         (catch-non-fatal-xml-parse-errors
-         info-q #(build-tree-node (:root tree-table) (xml/parse-xml (xml/clean-xml file)) :msg-q count-q))
+         info-q #(build-tree-node (:root tree-table) (xml/parse-xml (xml/clean-xml file)) :msg-q count-q :initial true))
 
         ;; well, now we know we really can't parse this file :-(
         (catch #(= :fatal (:type %1)) exception
@@ -203,7 +203,7 @@
         progress-text (jfx/label "Welcome to XML Tool!")]
     {:component (jfx/vbox
                  [(jfx/vgrow-component
-                   (jfx/scroll-pane text-pane :fit-to-width true :fit-to-height true)
+                   (jfx/scroll-pane text-pane :fit-to-width true)
                    :priority :always)
                   (jfx/hbox [progress-bar progress-text]
                             :spacing 8 :insets (jfx/insets 5 5 5 5))])
@@ -227,10 +227,9 @@
                     :root-visible false
                     :root-expanded true)
         split-pane (jfx/split-pane
-                    [(:component tree-table) (:component info-panel)]
+                    [(jfx/border-pane :center (:component tree-table)) (:component info-panel)]
                     :orientation :vertical)]
-    (.setPrefHeight (:component tree-table) Double/MAX_VALUE)
-    (jfx/set-split-pane-divider-positions split-pane [0 0.85])
+    (jfx/set-split-pane-divider-positions split-pane [0 0.8])
     {:info-panel info-panel
      :tree-table tree-table
      :split-pane split-pane
@@ -245,14 +244,29 @@
   "Starts an asynchronous loop that monitors the provided channel (count-q) and
   updates the provided atoms (node-count-atom and children-count-atom) to
   reflect the number of nodes created and the number we expect to construct."
-  [node-count-atom children-count-atom count-q]
-  (async/go-loop [message (async/<! count-q)]
+  [info-panel node-count-atom children-count-atom count-q info-q]
+  (async/go-loop [message (async/<! count-q) last-count -1]
 
     ;; update our progress counts
     (if (= :tree-progress (:type message))
       (do (swap! node-count-atom #(+ %1 (:nodes-added message)))
           (swap! children-count-atom #(+ %1 (:children-count message)))))
-    (recur (async/<! count-q))))
+
+    ;; post completion message to the queue
+    (if (and (not= -1 last-count)
+             (= 0 (- @node-count-atom (inc @children-count-atom))))
+      (do (info "Complete! lc" last-count "cc" (:children-count message))
+          (queue-complete-message
+           info-q (str "Document parsed with " (inc @children-count-atom) " nodes"))))
+
+    ;; update the progress bar + message every 1000 nodes
+    (if (= 0 (rem @node-count-atom 1000))
+      (do (jfx/set-progress (:progress-bar info-panel)
+                            (float (/ @node-count-atom (inc @children-count-atom))))
+          (jfx/set-text (:progress-text info-panel)
+                        (str "Processing document, added " @node-count-atom
+                             " of ~" (inc @children-count-atom) " nodes..."))))
+    (recur (async/<! count-q) (:children-count message))))
 
 (defn handle-info-queue
   "Starts an asynchronous loop that monitors the provided channel (info-q) and
@@ -261,56 +275,20 @@
   (async/go-loop [message (async/<! info-q)]
     (cond
 
+      ;; processing complete, update the progress bar
+      (= :complete (:type message))
+      (do (jfx/set-progress (:progress-bar info-panel) 1)
+          (jfx/add-text (:text-pane info-panel) message)
+          (jfx/set-text (:progress-text info-panel) "Document processed!"))
+
       ;; display the text message in the console area
       (:text message)
-      (do (jfx/add-text (:text-pane info-panel) message)
-
-          ;; processing complete, update the progress bar
-          (= :complete (:type message))
-          (do (jfx/set-progress (:progress-bar info-panel) 1)
-              (jfx/set-text (:progress-text info-panel) "Document processed!")))
+      (do (jfx/add-text (:text-pane info-panel) message))
 
       ;; update the text next to the progress bar
       (= :status (:type message))
       (jfx/set-text (:progress-text info-panel) (:content message)))
     (recur (async/<! info-q))))
-
-(defn monitor-for-completion
-  "Starts an asynchronous loop that monitors the provided atoms until they
-  indicate that all of the nodes of XML data have been processed. As nodes are
-  processed, the UI components in the provided info-panel will be updated. Once
-  processing has been completed, an update message is posted to the provided
-  info-q channel."
-  [info-panel node-count-atom children-count-atom info-q]
-  (async/go
-    (loop [last-incoming-count -1]
-
-      ;; we don't need to in a tight loop
-      (async/<! (async/timeout 100))
-
-      ;; update the progress bar status
-      (if (not= -1 last-incoming-count)
-        (do (jfx/set-progress (:progress-bar info-panel)
-                              (float (/ @node-count-atom (inc @children-count-atom))))
-            (jfx/set-text (:progress-text info-panel)
-                          (str "Processing document, added " @node-count-atom
-                               " of ~" (inc @children-count-atom) " nodes..."))))
-
-      ;; if we haven't started parsing nodes out, continue to loop
-      (if (and (= -1 last-incoming-count) (= 0 @node-count-atom))
-        (recur -1)
-
-        ;; when we have built all nodes or our incoming node count stops
-        ;; changing, processing is complete
-        (if (or (not= 0 (- (inc @children-count-atom) @node-count-atom))
-                (not= last-incoming-count (- (inc @children-count-atom) @node-count-atom)))
-          (recur (- (inc @children-count-atom) @node-count-atom)))))
-
-    ;; post completion message to the queue
-    (if (= 1 @node-count-atom)
-      (queue-complete-message info-q (str "Document could not be parsed!"))
-      (queue-complete-message
-       info-q (str "Document parsed with " (inc @children-count-atom) " nodes")))))
 
 ;;
 ;; Functions to create the main window
@@ -331,13 +309,10 @@
   [node-count children-count count-q info-q panel]
 
   ;; loop to handle the node counting messages
-  (handle-count-queue node-count children-count count-q)
+  (handle-count-queue (:info-panel panel) node-count children-count count-q info-q)
 
   ;; loop to handle update messages
-  (handle-info-queue (:info-panel panel) info-q)
-
-  ;; loop to monitor for completion
-  (monitor-for-completion (:info-panel panel) node-count children-count info-q))
+  (handle-info-queue (:info-panel panel) info-q))
 
 (defn new-window
   "Creates a new XMLTool window, begins parsing the provided XML file and makes
@@ -345,7 +320,6 @@
   displayed. Returns a map with information about the window."
   [xml-file-path]
 
-  ;; create our table and reference to hold our window
   (let [
         ;; we're going to track nodes and children as we add them
         count-q (async/chan (async/buffer 500) nil #(warn %1))
@@ -381,10 +355,7 @@
     ;; display our window
     (jfx/show-window @window
                      :pack true
-                     :after-fn #(do
-                                  (jfx/set-split-pane-divider-positions
-                                   (:split-pane panel) [0 0.85])
-                                  (acquire-file-fn)))
+                     :after-fn #(acquire-file-fn))
 
     window))
 

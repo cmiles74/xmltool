@@ -226,7 +226,8 @@
   (set-split-pane-divider-positions split-pane [[0 0.85]])"
   [split-pane div-positions]
   (if (sequential? (first div-positions))
-    (run #(.setDividerPosition split-pane (first %1) (second %1)))
+    (doall (map #(set-split-pane-divider-positions split-pane [(first %1) (second %1)])
+                div-positions))
     (run (.setDividerPosition split-pane
                               (first div-positions) (second div-positions)))))
 
@@ -291,8 +292,8 @@
     (run (let [stage (Stage. (if style style StageStyle/DECORATED))]
            (if title (.setTitle stage title))
            (if scene (.setScene stage scene))
-           (if width (do (.setMinWidth stage width) (.setMaxWidth stage width)))
-           (if height (do (.setMinHeight stage height) (.setMaxHeight stage height)))
+           (if width (.setMinWidth stage width))
+           (if height (.setMinHeight stage height))
            (if exit-on-close (.setOnCloseRequest stage (exit-on-close-handler)))
            (if icon (.add (.getIcons stage) icon))
            (deliver handle stage)))
@@ -403,3 +404,10 @@
         (run (.addAll (.getChildren box) components))
         (run (.add (.getChildren box) components))))
     box))
+
+(defn set-pref-size
+  [component & {:keys [width height]}]
+  (run
+    (if width (.setPrefWidth component width))
+    (if height (.setPrefHeight component height)))
+  component)
