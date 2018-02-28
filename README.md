@@ -21,7 +21,7 @@ window.
 ## Where Can I Get It?
 
 The most recent build is [available
-here](http://git-east.windsor.com/cmiles/xmltool/-/jobs/5/artifacts/download?job=deploy).
+here](http://git-east.windsor.com/cmiles/xmltool/-/jobs/artifacts/master/download?job=build).
 `:-D`
 
 ## Development
