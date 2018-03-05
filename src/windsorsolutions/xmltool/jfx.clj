@@ -16,7 +16,7 @@
    [javafx.geometry Insets Orientation]
    [javafx.scene Group Scene]
    [javafx.scene.control Label ProgressBar ScrollPane ScrollPane$ScrollBarPolicy SplitPane
-    TreeTableView TreeTableColumn TreeView TreeItem]
+    TreeTableCell TreeTableView TreeTableColumn TreeView TreeItem]
    [javafx.scene.image Image]
    [javafx.scene.layout BorderPane HBox VBox Priority]
    [javafx.scene.text Font Text TextFlow]
@@ -101,6 +101,19 @@
   [value-fn data-object]
   (ReadOnlyStringWrapper. (value-fn data-object)))
 
+(defn wrappable-cell-value-factory
+  "Provides a cell value factory that will create cells that wrap their text
+  when the contents doesn't fit the cell width."
+  []
+  (reify Callback
+    (call [this table-column]
+      (let [cell (TreeTableCell.)
+            contents (Text.)]
+        (.setGraphic cell contents)
+        (.bind (.wrappingWidthProperty contents) (.widthProperty cell))
+        (.bind (.textProperty contents) (.itemProperty cell))
+        cell))))
+
 (defn tree-table-column-callback
   "Creates a Callback that may be provided to a TreeTableColumn to render the
   cell valuesq for that column. The Callback will apply the provided 'value-fn'
@@ -121,6 +134,18 @@
   (let [column (TreeTableColumn. name)]
     (.setCellValueFactory column (tree-table-column-callback render-fn))
     (.setPrefWidth column width)
+    column))
+
+(defn wrappable-tree-table-column
+  "Creates a TreeTableColumn with the provided 'name' and set to the supplied
+  'width' that will render the cell values of the column with the provided
+  'render-fn' with contents that will wrap at the edge of the cell. The
+  'render-fn' must accept the backing data object for the TreeTableRow's
+  TreeItem instance and return a javafx.beans.ObjectProperty instance that can
+  be placed in the table cell."
+  [name width render-fn]
+  (let [column (tree-table-column name width render-fn)]
+    (.setCellFactory column (wrappable-cell-value-factory))
     column))
 
 (defn tree-table

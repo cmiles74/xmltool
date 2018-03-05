@@ -222,7 +222,7 @@
                     (list
                      (jfx/tree-table-column
                       "Name" 250 (tree-node-cell-renderer #(.getName %1)))
-                     (jfx/tree-table-column
+                     (jfx/wrappable-tree-table-column
                       "Value"428 (tree-node-cell-renderer #(.getValue %1))))
                     :root-visible false
                     :root-expanded true)
