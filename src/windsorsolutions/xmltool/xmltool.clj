@@ -166,29 +166,35 @@
   "Begins parsing the data from the File ('file') and populates the provided
   'tree-table' with nodes created from that data. As parsing progresses,
   messages are posted to the provided message queue ('info-q')."
-  [tree-table file info-q count-q]
+  [tree-table xml-text file info-q count-q]
   (sling/try+
    (queue-info-message info-q (str "Loading the file at " (.getAbsolutePath file) "..."))
    (catch-non-fatal-xml-parse-errors
-    info-q #(build-tree-node (:root tree-table) (xml/parse-xml file) :msg-q count-q))
-   (catch #(= :fatal (:type %1)) exception
-       (queue-error-message info-q
-                            (str "Fatal error encountered while parsing line "
-                                 (:line exception) " column " (:column exception) ": "
-                                 (.getMessage (:exception exception))))
+    info-q #(let [xml-tree (xml/parse-xml file)
+                  text-out (slurp file)] ;;(xml/pretty-xml-out xml-tree)
+              (jfx/run (.setText xml-text text-out))
+              (build-tree-node (:root tree-table) xml-tree :msg-q count-q)))
+    (catch #(= :fatal (:type %1)) exception
+      (queue-error-message info-q
+                           (str "Fatal error encountered while parsing line "
+                                (:line exception) " column " (:column exception) ": "
+                                (.getMessage (:exception exception))))
 
-       ;; strip out the bad characters
-       (sling/try+
-        (queue-info-message info-q (str "Attempting to scrub bad characters from the XML data"))
-        (catch-non-fatal-xml-parse-errors
-         info-q #(build-tree-node (:root tree-table) (xml/parse-xml (xml/clean-xml file)) :msg-q count-q :initial true))
+      ;; strip out the bad characters
+      (sling/try+
+       (queue-info-message info-q (str "Attempting to scrub bad characters from the XML data"))
+       (catch-non-fatal-xml-parse-errors
+        info-q #(let [xml-tree (xml/parse-xml (xml/clean-xml file))
+                      text-out (slurp file)] ;;(xml/pretty-xml-out xml-tree)
+                  (jfx/run (.setText xml-text text-out))
+                  (build-tree-node (:root tree-table) xml-tree :msg-q count-q :initial true)))
 
-        ;; well, now we know we really can't parse this file :-(
-        (catch #(= :fatal (:type %1)) exception
-          (queue-error-message info-q
-                               (str "Fatal error encountered while parsing line "
-                                    (:line exception) " column " (:column exception) ": "
-                                    (.getMessage (:exception exception)))))))))
+       ;; well, now we know we really can't parse this file :-(
+       (catch #(= :fatal (:type %1)) exception
+         (queue-error-message info-q
+                              (str "Fatal error encountered while parsing line "
+                                   (:line exception) " column " (:column exception) ": "
+                                   (.getMessage (:exception exception)))))))))
 
 ;;
 ;; Functions to build UI components
@@ -211,6 +217,17 @@
      :progress-text progress-text
      :text-pane text-pane}))
 
+(defn source-panel
+  []
+  (let [xml-text (jfx/text)
+        scroll-pane-text (jfx/scroll-pane xml-text
+                                          :hbar-policy :never
+                                          :fit-to-width true
+                                          :insets (jfx/insets 5 5 5 5))]
+    (.bind (.wrappingWidthProperty xml-text) (.widthProperty scroll-pane-text))
+    {:component scroll-pane-text
+     :text-pane xml-text}))
+
 (defn window-panel
   "Creates a new panel for the main window and returns a map containing the
   components with the following keys: :info-panel, :tree-table, :split-pane
@@ -226,11 +243,16 @@
                       "Value"428 (tree-node-cell-renderer #(.getValue %1))))
                     :root-visible false
                     :root-expanded true)
+        text-pane (source-panel)
+        tab-pane (jfx/tab-pane
+                  (list (jfx/tab "Tree" (:component tree-table))
+                        (jfx/tab "Source" (:component text-pane))))
         split-pane (jfx/split-pane
-                    [(jfx/border-pane :center (:component tree-table)) (:component info-panel)]
+                    [(jfx/border-pane :center tab-pane) (:component info-panel)]
                     :orientation :vertical)]
     (jfx/set-split-pane-divider-positions split-pane [0 0.8])
     {:info-panel info-panel
+     :xml-text (:text-pane text-pane)
      :tree-table tree-table
      :split-pane split-pane
      :component (jfx/border-pane :center split-pane
@@ -255,9 +277,8 @@
     ;; post completion message to the queue
     (if (and (not= -1 last-count)
              (= 0 (- @node-count-atom (inc @children-count-atom))))
-      (do (info "Complete! lc" last-count "cc" (:children-count message))
-          (queue-complete-message
-           info-q (str "Document parsed with " (inc @children-count-atom) " nodes"))))
+      (queue-complete-message
+       info-q (str "Document parsed with " (inc @children-count-atom) " nodes")))
 
     ;; update the progress bar + message every 1000 nodes
     (if (= 0 (rem @node-count-atom 1000))
@@ -343,7 +364,7 @@
         start-fn (fn [file]
                    (jfx/set-text (:progress-text (:info-panel panel))
                                  "Reading XML Document")
-                   (future (parse-xml-data (:tree-table panel) file info-q count-q))
+                   (future (parse-xml-data (:tree-table panel) (:xml-text panel)file info-q count-q))
                    (future (start-monitoring node-count children-count count-q info-q panel)))
 
         ;; function to start processing input or prompt for a file

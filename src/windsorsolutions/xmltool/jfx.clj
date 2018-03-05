@@ -16,6 +16,7 @@
    [javafx.geometry Insets Orientation]
    [javafx.scene Group Scene]
    [javafx.scene.control Label ProgressBar ScrollPane ScrollPane$ScrollBarPolicy SplitPane
+    Tab TabPane TabPane$TabClosingPolicy
     TreeTableCell TreeTableView TreeTableColumn TreeView TreeItem]
    [javafx.scene.image Image]
    [javafx.scene.layout BorderPane HBox VBox Priority]
@@ -183,7 +184,7 @@
 
 (defn scroll-pane
   "Returns a new ScrollPane and populates it with the supplied component."
-  [component & {:keys [hbar-policy vbar-policy fit-to-width fit-to-height]}]
+  [component & {:keys [hbar-policy vbar-policy fit-to-width fit-to-height insets]}]
   (let [scroll-pane (ScrollPane. component)]
     (if hbar-policy (.setHbarPolicy scroll-pane
                                     (translate-scrollbar-policy hbar-policy)))
@@ -191,6 +192,7 @@
                                     (translate-scrollbar-policy vbar-policy)))
     (if fit-to-width (.setFitToWidth scroll-pane fit-to-width))
     (if fit-to-height (.setFitToHeight scroll-pane fit-to-height))
+    (if insets (.setPadding scroll-pane insets))
     scroll-pane))
 
 (defn text-pane
@@ -436,3 +438,29 @@
     (if width (.setPrefWidth component width))
     (if height (.setPrefHeight component height)))
   component)
+
+(defn tab
+  [name component]
+  (Tab. name component))
+
+(defn tab-closing-policy
+  [key-name]
+  (cond
+    (= :all key-name)
+    TabPane$TabClosingPolicy/ALL_TABS
+
+    (= :selected key-name)
+    TabPane$TabClosingPolicy/SELECTED_TAB
+
+    :else
+    TabPane$TabClosingPolicy/UNAVAILABLE))
+
+(defn tab-pane
+  [tabs & {:keys [closing-policy]}]
+  (let [tab-panel (TabPane.)
+        policy (tab-closing-policy closing-policy)]
+    (.setTabClosingPolicy tab-panel policy)
+    (if (sequential? tabs)
+      (run (.addAll (.getTabs tab-panel) tabs))
+      (run (.add (.getTabs tab-panel) tabs)))
+    tab-panel))

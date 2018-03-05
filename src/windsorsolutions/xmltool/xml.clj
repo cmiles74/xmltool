@@ -13,13 +13,42 @@
    [clojure.walk :as walk]
    [clojure.string :as cstring])
   (:import
-   [java.io ByteArrayOutputStream DataOutputStream File InputStream PipedInputStream PipedOutputStream]
-   [javax.xml.parsers SAXParserFactory SAXParser]
+   [java.io ByteArrayInputStream ByteArrayOutputStream DataOutputStream File
+    InputStream PipedInputStream PipedOutputStream]
+   [javax.xml.parsers DocumentBuilderFactory SAXParserFactory SAXParser]
+   [javax.xml.transform OutputKeys TransformerFactory]
+   [javax.xml.transform.dom DOMSource]
+   [javax.xml.transform.stream StreamResult]
+   [java.io OutputStreamWriter]
    [org.xml.sax ErrorHandler]
    [clojure.lang XMLHandler]))
 
 ;; set of invalid XML characters that prevent parsing
 (def BAD-CHARACTERS #{16})
+
+(defn write-xml-str
+  [xml-data]
+  (with-out-str (xml/emit xml-data)))
+
+(defn transformer-factory
+  []
+  (let [factory (TransformerFactory/newInstance)]
+    (.setAttribute factory "indent-number" (Integer. 12))
+    factory))
+
+(defn pretty-xml-out
+  [xml-data]
+  (let [xml-str (write-xml-str xml-data)
+        factory (DocumentBuilderFactory/newInstance)
+        builder (.newDocumentBuilder factory)
+        document (.parse builder (ByteArrayInputStream. (.getBytes xml-str)))
+        transformer (.newTransformer (transformer-factory))
+        output-stream (ByteArrayOutputStream.)]
+    (.setOutputProperty transformer OutputKeys/INDENT "yes")
+    (.transform transformer
+                (DOMSource. document)
+                (StreamResult. (OutputStreamWriter. output-stream "utf-8")))
+    (.toString output-stream)))
 
 (defn sax-parser-content-handler
   "Returns a content handler for a SAXParser that will log errors."
