@@ -1,4 +1,4 @@
-3(ns windsorsolutions.xmltool.xmltool
+(ns windsorsolutions.xmltool.xmltool
   (:require
    [taoensso.timbre :as timbre
     :refer (log  trace  debug  info  warn  error  fatal  report
@@ -9,10 +9,12 @@
    [slingshot.slingshot :as sling]
    [clojure.walk :as walk]
    [clojure.string :as cstring]
+   [clojure.java.io :as io]
    [clojure.core.async :as async]
    [windsorsolutions.xmltool.xml :as xml]
    [windsorsolutions.xmltool.jfx :as jfx]
-   [clojure.java.io :as io]))
+   [windsorsolutions.xmltool.editor :as editor])
+  (:import [javafx.scene.layout StackPane]))
 
 ;;
 ;; Tree node to back our tree nodes
@@ -166,14 +168,14 @@
   "Begins parsing the data from the File ('file') and populates the provided
   'tree-table' with nodes created from that data. As parsing progresses,
   messages are posted to the provided message queue ('info-q')."
-  [tree-table xml-text file info-q count-q]
+  [tree-table xml-editor file info-q count-q]
   (sling/try+
    (queue-info-message info-q (str "Loading the file at " (.getAbsolutePath file) "..."))
    (catch-non-fatal-xml-parse-errors
-    info-q #(let [xml-tree (xml/parse-xml file)
-                  text-out (slurp file)] ;;(xml/pretty-xml-out xml-tree)
-              (jfx/run (.setText xml-text text-out))
-              (build-tree-node (:root tree-table) xml-tree :msg-q count-q)))
+    info-q #(let [xml-tree (xml/parse-xml file)]
+              ;;(xml/pretty-xml-out xml-tree)
+              (build-tree-node (:root tree-table) xml-tree :msg-q count-q)
+              (jfx/run (editor/set-text xml-editor @(future (slurp file))))))
     (catch #(= :fatal (:type %1)) exception
       (queue-error-message info-q
                            (str "Fatal error encountered while parsing line "
@@ -184,10 +186,10 @@
       (sling/try+
        (queue-info-message info-q (str "Attempting to scrub bad characters from the XML data"))
        (catch-non-fatal-xml-parse-errors
-        info-q #(let [xml-tree (xml/parse-xml (xml/clean-xml file))
-                      text-out (slurp file)] ;;(xml/pretty-xml-out xml-tree)
-                  (jfx/run (.setText xml-text text-out))
-                  (build-tree-node (:root tree-table) xml-tree :msg-q count-q :initial true)))
+        info-q #(let [xml-tree (xml/parse-xml (xml/clean-xml file))]
+                  ;;(xml/pretty-xml-out xml-tree)
+                  (build-tree-node (:root tree-table) xml-tree :msg-q count-q :initial true)
+                  (jfx/run (editor/set-text xml-editor @(future (slurp file))))))
 
        ;; well, now we know we really can't parse this file :-(
        (catch #(= :fatal (:type %1)) exception
@@ -219,14 +221,10 @@
 
 (defn source-panel
   []
-  (let [xml-text (jfx/text)
-        scroll-pane-text (jfx/scroll-pane xml-text
-                                          :hbar-policy :never
-                                          :fit-to-width true
-                                          :insets (jfx/insets 5 5 5 5))]
-    (.bind (.wrappingWidthProperty xml-text) (.widthProperty scroll-pane-text))
+  (let [xml-editor (editor/editor)
+        scroll-pane-text (:component xml-editor)]
     {:component scroll-pane-text
-     :text-pane xml-text}))
+     :editor (:editor xml-editor)}))
 
 (defn window-panel
   "Creates a new panel for the main window and returns a map containing the
@@ -252,7 +250,7 @@
                     :orientation :vertical)]
     (jfx/set-split-pane-divider-positions split-pane [0 0.8])
     {:info-panel info-panel
-     :xml-text (:text-pane text-pane)
+     :editor (:editor text-pane)
      :tree-table tree-table
      :split-pane split-pane
      :component (jfx/border-pane :center split-pane
@@ -353,18 +351,21 @@
         ;; main window panel
         panel (window-panel)
 
+        ;; our scene
+        scene (jfx/scene (:component panel))
+
         ;; create our window
         window (jfx/window
                 :title "XMLTool" :width 700 :height 900
                 :icon (jfx/image "rocket-32.png")
                 :exit-on-close true
-                :scene (jfx/scene (:component panel)))
+                :scene scene)
 
         ;; function to start processing an XML file and monitoring queues
         start-fn (fn [file]
                    (jfx/set-text (:progress-text (:info-panel panel))
                                  "Reading XML Document")
-                   (future (parse-xml-data (:tree-table panel) (:xml-text panel)file info-q count-q))
+                   (future (parse-xml-data (:tree-table panel) (:editor panel) file info-q count-q))
                    (future (start-monitoring node-count children-count count-q info-q panel)))
 
         ;; function to start processing input or prompt for a file
@@ -372,6 +373,9 @@
                           (if xml-file-path
                             (start-fn xml-file-path)
                             (prompt-for-file @window start-fn)))]
+
+    ;; add our stylesheet for the editor
+    (jfx/run (editor/add-stylesheet scene))
 
     ;; display our window
     (jfx/show-window @window

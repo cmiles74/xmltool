@@ -5,7 +5,8 @@
                  [org.clojure/tools.cli "0.3.5"]
                  [org.clojure/core.async "0.4.474"]
                  [com.taoensso/timbre "4.10.0"]
-                 [slingshot "0.12.2"]]
+                 [slingshot "0.12.2"]
+                 [org.fxmisc.richtext/richtextfx "0.8.2"]]
   :main windsorsolutions.xmltool.main
   :launch4j-config-file "dev-resources/launch4j-config.xml"
   :resource-paths ["resources"]
