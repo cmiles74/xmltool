@@ -16,10 +16,11 @@
    [org.fxmisc.richtext CodeArea LineNumberFactory]
    [org.fxmisc.richtext.model StyleSpans StyleSpansBuilder]))
 
+;; regular expressions for parsing data
 (def XML-TAG (Pattern/compile "(?<ELEMENT>(</?\\h*)(\\w+)([^<>]*)(\\h*/?>))|(?<COMMENT><!--[^<>]+-->)"))
 (def ATTRIBUTES (Pattern/compile "(\\w+\\h*)(=)(\\h*\"[^\"]+\")"))
 
-
+;; attribute symbols
 (def GROUP_OPEN_BRACKET 2)
 (def GROUP_ELEMENT_NAME 3)
 (def GROUP_ATTRIBUTES_SECTION 4)
@@ -28,6 +29,7 @@
 (def GROUP_EQUAL_SYMBOL 2)
 (def GROUP_ATTRIBUTE_VALUE 3)
 
+;; test data
 (def SAMPLE ["<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>",
              "<!-- Sample XML -->",
              "< orders >",
@@ -62,6 +64,8 @@
              "</orders>"])
 
 (defn compute-highlighting
+  "Returns a set of StyleSpans that indicate how the content of the provided
+  'text' should be highlighted."
   [text]
   (let [matcher (.matcher XML-TAG text)
         spans-builder (StyleSpansBuilder.)]
@@ -99,6 +103,7 @@
     (.create spans-builder)))
 
 (defn editor
+  "Returns a new CodeArea that is embedded in a VirtualizedScrollPane."
   []
   (let [code-area (CodeArea.)]
     (.setParagraphGraphicFactory code-area (LineNumberFactory/get code-area))
@@ -110,11 +115,11 @@
      :editor code-area}))
 
 (defn set-text
+  "Sets the provided text for the editor."
   [editor text]
   (.replaceText editor 0 0 text))
 
 (defn add-stylesheet
+  "Adds our XML CSS stylesheet to the provided scene."
   [scene]
-  (info scene)
-  (info (.getStylesheets scene))
   (.add (.getStylesheets scene) (.toExternalForm (io/resource "xml-highlighting.css"))))

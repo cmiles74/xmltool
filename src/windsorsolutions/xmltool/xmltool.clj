@@ -202,24 +202,8 @@
 ;; Functions to build UI components
 ;;
 
-(defn status-panel
-  "Creates a new status panel and returns a map containing the components with
-  the following keys: :component, :progress-bar :progress-text :text-pane."
-  []
-  (let [text-pane (jfx/text-pane :insets (jfx/insets 5 5 5 5))
-        progress-bar (jfx/progress-bar)
-        progress-text (jfx/label "Welcome to XML Tool!")]
-    {:component (jfx/vbox
-                 [(jfx/vgrow-component
-                   (jfx/scroll-pane text-pane :fit-to-width true)
-                   :priority :always)
-                  (jfx/hbox [progress-bar progress-text]
-                            :spacing 8 :insets (jfx/insets 5 5 5 5))])
-     :progress-bar progress-bar
-     :progress-text progress-text
-     :text-pane text-pane}))
-
 (defn source-panel
+  "Returns a new source panel that includes a text editor component."
   []
   (let [xml-editor (editor/editor)
         scroll-pane-text (:component xml-editor)]
@@ -231,8 +215,7 @@
   components with the following keys: :info-panel, :tree-table, :split-pane
   and :component, which is a component containing them all."
   []
-  (let [info-panel (status-panel)
-        tree-table (jfx/tree-table
+  (let [tree-table (jfx/tree-table
                     (tree-node. "Root" nil)
                     (list
                      (jfx/tree-table-column
@@ -242,19 +225,22 @@
                     :root-visible false
                     :root-expanded true)
         text-pane (source-panel)
+        console-pane (jfx/text-pane :insets (jfx/insets 5 5 5 5))
         tab-pane (jfx/tab-pane
                   (list (jfx/tab "Tree" (:component tree-table))
-                        (jfx/tab "Source" (:component text-pane))))
-        split-pane (jfx/split-pane
-                    [(jfx/border-pane :center tab-pane) (:component info-panel)]
-                    :orientation :vertical)]
-    (jfx/set-split-pane-divider-positions split-pane [0 0.8])
-    {:info-panel info-panel
+                        (jfx/tab "Source" (:component text-pane))
+                        (jfx/tab "Console" (jfx/scroll-pane console-pane :fit-to-width true))))
+        progress-bar (jfx/progress-bar)
+        progress-text (jfx/label "Welcome to XML Tool!")
+        content-pane (jfx/border-pane :center tab-pane
+                                      :bottom (jfx/hbox [progress-bar progress-text]
+                                                        :spacing 8 :insets (jfx/insets 5 5 5 5)))]
+    {:tree-table tree-table
      :editor (:editor text-pane)
-     :tree-table tree-table
-     :split-pane split-pane
-     :component (jfx/border-pane :center split-pane
-                                 :insets (jfx/insets 10 10 10 10 ))}))
+     :console console-pane
+     :progress-bar progress-bar
+     :progress-text progress-text
+     :component content-pane}))
 
 ;;
 ;; Functions for handling the message queues
@@ -264,7 +250,7 @@
   "Starts an asynchronous loop that monitors the provided channel (count-q) and
   updates the provided atoms (node-count-atom and children-count-atom) to
   reflect the number of nodes created and the number we expect to construct."
-  [info-panel node-count-atom children-count-atom count-q info-q]
+  [panel node-count-atom children-count-atom count-q info-q]
   (async/go-loop [message (async/<! count-q) last-count -1]
 
     ;; update our progress counts
@@ -280,9 +266,9 @@
 
     ;; update the progress bar + message every 1000 nodes
     (if (= 0 (rem @node-count-atom 1000))
-      (do (jfx/set-progress (:progress-bar info-panel)
+      (do (jfx/set-progress (:progress-bar panel)
                             (float (/ @node-count-atom (inc @children-count-atom))))
-          (jfx/set-text (:progress-text info-panel)
+          (jfx/set-text (:progress-text panel)
                         (str "Processing document, added " @node-count-atom
                              " of ~" (inc @children-count-atom) " nodes..."))))
     (recur (async/<! count-q) (:children-count message))))
@@ -290,23 +276,23 @@
 (defn handle-info-queue
   "Starts an asynchronous loop that monitors the provided channel (info-q) and
   updates the provided information panel (info-q) of UI components."
-  [info-panel info-q]
+  [panel info-q]
   (async/go-loop [message (async/<! info-q)]
     (cond
 
       ;; processing complete, update the progress bar
       (= :complete (:type message))
-      (do (jfx/set-progress (:progress-bar info-panel) 1)
-          (jfx/add-text (:text-pane info-panel) message)
-          (jfx/set-text (:progress-text info-panel) "Document processed!"))
+      (do (jfx/set-progress (:progress-bar panel) 1)
+          (jfx/add-text (:console panel) message)
+          (jfx/set-text (:progress-text panel) "Document processed!"))
 
       ;; display the text message in the console area
       (:text message)
-      (do (jfx/add-text (:text-pane info-panel) message))
+      (do (jfx/add-text (:console panel) message))
 
       ;; update the text next to the progress bar
       (= :status (:type message))
-      (jfx/set-text (:progress-text info-panel) (:content message)))
+      (jfx/set-text (:progress-text panel) (:content message)))
     (recur (async/<! info-q))))
 
 ;;
@@ -328,10 +314,10 @@
   [node-count children-count count-q info-q panel]
 
   ;; loop to handle the node counting messages
-  (handle-count-queue (:info-panel panel) node-count children-count count-q info-q)
+  (handle-count-queue panel node-count children-count count-q info-q)
 
   ;; loop to handle update messages
-  (handle-info-queue (:info-panel panel) info-q))
+  (handle-info-queue panel info-q))
 
 (defn new-window
   "Creates a new XMLTool window, begins parsing the provided XML file and makes
@@ -363,7 +349,7 @@
 
         ;; function to start processing an XML file and monitoring queues
         start-fn (fn [file]
-                   (jfx/set-text (:progress-text (:info-panel panel))
+                   (jfx/set-text (:progress-text panel)
                                  "Reading XML Document")
                    (future (parse-xml-data (:tree-table panel) (:editor panel) file info-q count-q))
                    (future (start-monitoring node-count children-count count-q info-q panel)))
