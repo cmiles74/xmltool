@@ -8,6 +8,7 @@
                  spy get-env log-env)]
    [taoensso.timbre.profiling :as profiling
     :refer (pspy pspy* profile defnp p p*)]
+   [taoensso.timbre.appenders.core :as appenders]
    [slingshot.slingshot :only [throw+ try+]]
    [windsorsolutions.xmltool.jfx :as jfx]
    [windsorsolutions.xmltool.xmltool :as xmltool]))
@@ -16,11 +17,16 @@
   "Bootstraps the application"
   [& args]
 
+  ;; set up logging
+  ;; (timbre/merge-config!
+  ;;  {:appenders {:spit (appenders/spit-appender {:fname "xmltool.log"})}})
+  (info "Called with arguments" args)
+
   ;; ensure that the JavaFX environment has been initialized
   (jfx/init)
 
-  (println "Hello from XMLTool!")
-  (xmltool/xml-tool (first args)))
+  (info "Opening file" (last args))
+  (xmltool/xml-tool (last args)))
 
 (defn -main
   "Bootstraps the application"

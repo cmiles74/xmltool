@@ -14,7 +14,9 @@
    [windsorsolutions.xmltool.xml :as xml]
    [windsorsolutions.xmltool.jfx :as jfx]
    [windsorsolutions.xmltool.editor :as editor])
-  (:import [javafx.scene.layout StackPane]))
+  (:import
+   [java.io File]
+   [javafx.scene.layout StackPane]))
 
 ;;
 ;; Tree node to back our tree nodes
@@ -196,7 +198,11 @@
          (queue-error-message info-q
                               (str "Fatal error encountered while parsing line "
                                    (:line exception) " column " (:column exception) ": "
-                                   (.getMessage (:exception exception)))))))))
+                                   (.getMessage (:exception exception)))))))
+    (catch Exception exception
+      (do (queue-error-message info-q
+                               (str "Couldn't open the file at " file ": " (.getMessage exception)))
+          (queue-complete-message info-q "Couldn't open the file, check the \"Console\" tab for more details")))))
 
 ;;
 ;; Functions to build UI components
@@ -283,8 +289,9 @@
       ;; processing complete, update the progress bar
       (= :complete (:type message))
       (do (jfx/set-progress (:progress-bar panel) 1)
-          (jfx/add-text (:console panel) message)
-          (jfx/set-text (:progress-text panel) "Document processed!"))
+          ;;(jfx/add-text (:console panel) message)
+          (jfx/set-text (:progress-text panel)
+                        (if (:text message) (:text message) "Document processed!")))
 
       ;; display the text message in the console area
       (:text message)
@@ -326,6 +333,9 @@
   [xml-file-path]
 
   (let [
+        ;; get a handle on the incoming xml file
+        xml-file (if xml-file-path (File. xml-file-path))
+
         ;; we're going to track nodes and children as we add them
         count-q (async/chan (async/buffer 500) nil #(warn %1))
         node-count (atom 0)
@@ -349,15 +359,14 @@
 
         ;; function to start processing an XML file and monitoring queues
         start-fn (fn [file]
-                   (jfx/set-text (:progress-text panel)
-                                 "Reading XML Document")
+                   (jfx/set-text (:progress-text panel) (str "Reading XML Document " file))
                    (future (parse-xml-data (:tree-table panel) (:editor panel) file info-q count-q))
                    (future (start-monitoring node-count children-count count-q info-q panel)))
 
         ;; function to start processing input or prompt for a file
         acquire-file-fn (fn []
-                          (if xml-file-path
-                            (start-fn xml-file-path)
+                          (if xml-file
+                            (start-fn xml-file)
                             (prompt-for-file @window start-fn)))]
 
     ;; add our stylesheet for the editor
