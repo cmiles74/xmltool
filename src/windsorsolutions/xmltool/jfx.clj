@@ -342,11 +342,6 @@
   (run
     (if pack (.sizeToScene stage))
     (.show stage))
-
-  ;; workaround janky layout issue 
-  (run
-    (.setHeight stage (dec (.getHeight stage))))
-
   (if after-fn (after-fn))
   stage)
 
