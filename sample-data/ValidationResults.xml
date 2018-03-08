@@ -1,6 +1,7 @@
 <return xmlns='http://exchangenetwork.net/schemas/validator/1.1/validatorEx.xsd'>
   <transactionId>_82f77cf5-a4eb-4ec0-a43f-6b5fb036178d</transactionId>
   <validationType>schema</validationType>
+  <!-- This is a comment!! -->
   <processStatus>Finished</processStatus>
   <documentStatus>Valid</documentStatus>
   <timeStamp>2015-07-09T15:10:48Z</timeStamp>

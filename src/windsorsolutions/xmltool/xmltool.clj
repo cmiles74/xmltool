@@ -175,9 +175,9 @@
    (queue-info-message info-q (str "Loading the file at " (.getAbsolutePath file) "..."))
    (catch-non-fatal-xml-parse-errors
     info-q #(let [xml-tree (xml/parse-xml file)]
-              ;;(xml/pretty-xml-out xml-tree)
               (build-tree-node (:root tree-table) xml-tree :msg-q count-q)
-              (jfx/run (editor/set-text xml-editor @(future (slurp file))))))
+              (jfx/run (editor/set-text (:editor xml-editor) @(future (xml/pretty-xml-out xml-tree)))
+                (editor/scroll-to-top (:component xml-editor)))))
     (catch #(= :fatal (:type %1)) exception
       (queue-error-message info-q
                            (str "Fatal error encountered while parsing line "
@@ -187,11 +187,11 @@
       ;; strip out the bad characters
       (sling/try+
        (queue-info-message info-q (str "Attempting to scrub bad characters from the XML data"))
-       (catch-non-fatal-xml-parse-errors
-        info-q #(let [xml-tree (xml/parse-xml (xml/clean-xml file))]
-                  ;;(xml/pretty-xml-out xml-tree)
+       (catch-non-fatal-xml-parse-errors info-q
+        #(let [xml-tree (xml/parse-xml (xml/clean-xml file))]
                   (build-tree-node (:root tree-table) xml-tree :msg-q count-q :initial true)
-                  (jfx/run (editor/set-text xml-editor @(future (slurp file))))))
+                  (jfx/run (editor/set-text (:editor xml-editor) @(future (xml/pretty-xml-out xml-tree)))
+                    (editor/scroll-to-top (:component xml-editor)))))
 
        ;; well, now we know we really can't parse this file :-(
        (catch #(= :fatal (:type %1)) exception
@@ -241,8 +241,10 @@
         content-pane (jfx/border-pane :center tab-pane
                                       :bottom (jfx/hbox [progress-bar progress-text]
                                                         :spacing 8 :insets (jfx/insets 5 5 5 5)))]
+    (jfx/install-copy-paste-handler (:component tree-table))
+    (.setEditable (:editor text-pane) false)
     {:tree-table tree-table
-     :editor (:editor text-pane)
+     :editor text-pane
      :console console-pane
      :progress-bar progress-bar
      :progress-text progress-text
@@ -370,7 +372,7 @@
                             (prompt-for-file @window start-fn)))]
 
     ;; add our stylesheet for the editor
-    (jfx/run (editor/add-stylesheet scene))
+    ;;(jfx/run (editor/add-stylesheet scene))
 
     ;; display our window
     (jfx/show-window @window

@@ -22,7 +22,9 @@
    [javafx.scene.layout BorderPane HBox VBox Priority]
    [javafx.scene.text Font Text TextFlow]
    [javafx.stage FileChooser FileChooser$ExtensionFilter StageBuilder StageStyle Stage]
-   [javafx.util Callback]))
+   [javafx.util Callback]
+   [javafx.scene.input Clipboard ClipboardContent KeyCode KeyCodeCombination KeyCombination KeyEvent]
+   [javafx.scene.input KeyCombination$Modifier]))
 
 (defn development?
   "Returns true if we are running in the development environment."
@@ -335,6 +337,11 @@
   (run
     (if pack (.sizeToScene stage))
     (.show stage))
+
+  ;; workaround janky layout issue 
+  (run
+    (.setHeight stage (dec (.getHeight stage))))
+
   (if after-fn (after-fn))
   stage)
 
@@ -464,3 +471,28 @@
       (run (.addAll (.getTabs tab-panel) tabs))
       (run (.add (.getTabs tab-panel) tabs)))
     tab-panel))
+
+(def KEY-COPY (KeyCodeCombination.
+               KeyCode/C
+               (into-array KeyCombination$Modifier [KeyCombination/CONTROL_ANY])))
+
+(defn table-key-event-handler
+  []
+  (reify
+    EventHandler
+    (handle [thix event]
+      (if (.match KEY-COPY event)
+        (let [table-view (.getSource event)
+              clipboard (ClipboardContent.)]
+          (.consume event)
+          (.putString clipboard
+                      (apply str
+                             (interpose "/t"
+                                        (for [position (.getSelectedCells (.getSelectionModel table-view))]
+                                          (.get (.getCellObservableValue (.get (.getColumns table-view) (.getColumn position))
+                                                                         (.getRow position)))))))
+          (.setContent (Clipboard/getSystemClipboard) clipboard))))))
+
+(defn install-copy-paste-handler
+  [tableview]
+  (.setOnKeyPressed tableview (table-key-event-handler)))

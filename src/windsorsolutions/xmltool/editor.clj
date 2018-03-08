@@ -69,14 +69,13 @@
   [text]
   (let [matcher (.matcher XML-TAG text)
         spans-builder (StyleSpansBuilder.)]
-
     (loop [last-end 0
            found (.find matcher)]
       (if found
         (do
           (.add spans-builder [], (- (.start matcher) last-end))
           (if (.group matcher "COMMENT")
-            (.add spans-builder #{"comment"} (- (.end matcher) (.start matcher)))
+            (.add spans-builder #{"comment"} (- (inc (.end matcher)) (.start matcher)))
             (if (.group matcher "ELEMENT")
               (let [attr-text (.group matcher GROUP_ATTRIBUTES_SECTION)]
                 (.add spans-builder #{"tagmark"} (- (.end matcher GROUP_OPEN_BRACKET) (.start matcher GROUP_OPEN_BRACKET)))
@@ -89,14 +88,18 @@
                            attr-found (.find attr-matcher)]
                       (if attr-found
                         (do (.add spans-builder [] (- (.start attr-matcher) attr-last-end))
-                            (.add spans-builder #{"attribute"} (- (.end attr-matcher GROUP_ATTRIBUTE_NAME) (.start attr-matcher GROUP_ATTRIBUTE_NAME)))
-                            (.add spans-builder #{"tagmark"} (- (.end attr-matcher GROUP_EQUAL_SYMBOL) (.end attr-matcher GROUP_ATTRIBUTE_NAME)))
-                            (.add spans-builder #{"avalue"} (- (.end attr-matcher GROUP_ATTRIBUTE_VALUE) (.end attr-matcher GROUP_EQUAL_SYMBOL)))))
+                            (.add spans-builder #{"attribute"}
+                                  (- (.end attr-matcher GROUP_ATTRIBUTE_NAME) (.start attr-matcher GROUP_ATTRIBUTE_NAME)))
+                            (.add spans-builder #{"tagmark"}
+                                  (- (.end attr-matcher GROUP_EQUAL_SYMBOL) (.end attr-matcher GROUP_ATTRIBUTE_NAME)))
+                            (.add spans-builder #{"avalue"}
+                                  (- (.end attr-matcher GROUP_ATTRIBUTE_VALUE) (.end attr-matcher GROUP_EQUAL_SYMBOL)))))
 
                       (if attr-found (recur (.end attr-matcher) (.find attr-matcher))
                           (if (> (.length attr-text) attr-last-end)
                             (.add spans-builder [] (- (.length attr-text) attr-last-end))))))
-                  (.add spans-builder #{"tagmark"} (- (.end matcher GROUP_CLOSE_BRACKET) (.end matcher GROUP_ATTRIBUTES_SECTION)))))))))
+                  (.add spans-builder #{"tagmark"}
+                        (- (.end matcher GROUP_CLOSE_BRACKET) (.end matcher GROUP_ATTRIBUTES_SECTION)))))))))
 
       (if found (recur (.end matcher) (.find matcher))
           (.add spans-builder [] (- (.length text) last-end))))
@@ -118,6 +121,10 @@
   "Sets the provided text for the editor."
   [editor text]
   (.replaceText editor 0 0 text))
+
+(defn scroll-to-top
+  [component]
+  (.scrollToPixel component 0.0 0.0))
 
 (defn add-stylesheet
   "Adds our XML CSS stylesheet to the provided scene."

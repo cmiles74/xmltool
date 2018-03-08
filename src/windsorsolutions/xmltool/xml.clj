@@ -19,36 +19,13 @@
    [javax.xml.transform OutputKeys TransformerFactory]
    [javax.xml.transform.dom DOMSource]
    [javax.xml.transform.stream StreamResult]
-   [java.io OutputStreamWriter]
+   [javax.xml.xpath XPath XPathFactory]
+   [java.io OutputStreamWriter StringWriter]
    [org.xml.sax ErrorHandler]
    [clojure.lang XMLHandler]))
 
 ;; set of invalid XML characters that prevent parsing
 (def BAD-CHARACTERS #{16})
-
-(defn write-xml-str
-  [xml-data]
-  (with-out-str (xml/emit xml-data)))
-
-(defn transformer-factory
-  []
-  (let [factory (TransformerFactory/newInstance)]
-    (.setAttribute factory "indent-number" (Integer. 12))
-    factory))
-
-(defn pretty-xml-out
-  [xml-data]
-  (let [xml-str (write-xml-str xml-data)
-        factory (DocumentBuilderFactory/newInstance)
-        builder (.newDocumentBuilder factory)
-        document (.parse builder (ByteArrayInputStream. (.getBytes xml-str)))
-        transformer (.newTransformer (transformer-factory))
-        output-stream (ByteArrayOutputStream.)]
-    (.setOutputProperty transformer OutputKeys/INDENT "yes")
-    (.transform transformer
-                (DOMSource. document)
-                (StreamResult. (OutputStreamWriter. output-stream "utf-8")))
-    (.toString output-stream)))
 
 (defn sax-parser-content-handler
   "Returns a content handler for a SAXParser that will log errors."
@@ -123,6 +100,51 @@
         (catch Exception e (info e))
         (finally (try (.close piped-out)))))
     piped-in))
+
+(defn strip-whitespace-str
+  "Removes extraneous whitespace from the end of each line in the supplied
+  'text' String."
+  [text]
+  (let [output (StringWriter.)
+        reader (io/reader (ByteArrayInputStream. (.getBytes text)))]
+    (try
+      (doseq [line (line-seq reader)]
+        (if line (.write output (.trim line))))
+      (catch Exception e (info e))
+      (finally (try
+                 (.close output)
+                 (.flush output))))
+    (.toString output)))
+
+(defn write-xml-str
+  "Accepts a tree of parsed XML data and returns a string representation."
+  [xml-data]
+  (with-out-str (xml/emit xml-data)))
+
+(defn transformer-factory
+  "Returns a TransformerFactory that will indent by two spaces."
+  []
+  (let [factory (TransformerFactory/newInstance)]
+    (.setAttribute factory "indent-number" (Integer. 2))
+    factory))
+
+(defn pretty-xml-out
+  [xml-data]
+  (let [xml-str (strip-whitespace-str (write-xml-str xml-data))
+        factory (DocumentBuilderFactory/newInstance)
+        builder (.newDocumentBuilder factory)
+        document (.parse builder (ByteArrayInputStream. (.getBytes xml-str)))
+        transformer (.newTransformer (transformer-factory))
+        output-stream (ByteArrayOutputStream.)]
+
+    ;; format the document
+    (.setOutputProperty transformer OutputKeys/INDENT "yes")
+    (.setOutputProperty transformer OutputKeys/ENCODING "UTF-8")
+    (.transform transformer
+                (DOMSource. document)
+                (StreamResult. (OutputStreamWriter. output-stream "utf-8")))
+    (.toString output-stream)))
+
 
 (defmulti parse-xml
   "Parses an XML file and returns a map of it's data."
