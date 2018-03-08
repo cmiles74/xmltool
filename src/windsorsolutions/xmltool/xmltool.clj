@@ -238,7 +238,10 @@
                         (jfx/tab "Console" (jfx/scroll-pane console-pane :fit-to-width true))))
         progress-bar (jfx/progress-bar)
         progress-text (jfx/label "Welcome to XML Tool!")
+        open-item (jfx/menu-item "Open...")
+        menu (jfx/menu-bar [(jfx/menu-item "File" open-item)])
         content-pane (jfx/border-pane :center tab-pane
+                                      :top menu
                                       :bottom (jfx/hbox [progress-bar progress-text]
                                                         :spacing 8 :insets (jfx/insets 5 5 5 5)))]
     (jfx/install-copy-handler (:component tree-table))
@@ -248,7 +251,8 @@
      :console console-pane
      :progress-bar progress-bar
      :progress-text progress-text
-     :component content-pane}))
+     :component content-pane
+     :open-menu-item open-item}))
 
 ;;
 ;; Functions for handling the message queues
@@ -373,6 +377,12 @@
 
     ;; add our stylesheet for the editor
     ;;(jfx/run (editor/add-stylesheet scene))
+    (jfx/selection-handler (:open-menu-item panel)
+                           (fn [event]
+                             (prompt-for-file @window
+                                              (fn [file-in]
+                                                (jfx/remove-leaves (:root (:tree-table panel)))
+                                                (start-fn file-in)))))
 
     ;; display our window
     (jfx/show-window @window

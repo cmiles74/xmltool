@@ -15,7 +15,7 @@
    [javafx.event EventHandler]
    [javafx.geometry Insets Orientation]
    [javafx.scene Group Scene]
-   [javafx.scene.control Label ProgressBar ScrollPane ScrollPane$ScrollBarPolicy SplitPane
+   [javafx.scene.control Label Menu MenuBar ProgressBar ScrollPane ScrollPane$ScrollBarPolicy SplitPane
     Tab TabPane TabPane$TabClosingPolicy
     TreeTableCell TreeTableView TreeTableColumn TreeView TreeItem]
    [javafx.scene.image Image]
@@ -88,7 +88,7 @@
   "Removes all of the leaves from the provided parent."
   [parent]
   (if (seq (.getChildren parent))
-    (run (.removeAll (.getChildren parent)))))
+    (run (.clear (.getChildren parent)))))
 
 (defn tree-item
   "Returns a new TreeItem instance that wraps the provided data object. If a
@@ -505,3 +505,34 @@
   "Installs a handler on a table that will copy selected text to the clipboard."
   [tableview]
   (.setOnKeyPressed tableview (table-key-event-handler)))
+
+(defn menu-item
+  ([name]
+   (menu-item name nil))
+  ([name item-seq]
+   (let [menu (Menu. name)]
+     (if item-seq
+       (if (sequential? item-seq)
+         (.addAll (.getItems menu) item-seq)
+         (.add (.getItems menu) item-seq)))
+     menu)))
+
+(defn menu-bar
+  [item-seq]
+  (let [menu-bar (MenuBar.)]
+    (if (sequential? item-seq)
+      (.addAll (.getMenus menu-bar) item-seq)
+      (.add (.getMenus menu-bar) item-seq))
+    menu-bar))
+
+(defn selection-handler
+  [menu-item handler-fn]
+  (.setOnAction
+   menu-item
+   (reify EventHandler
+     (handle [this action-event]
+       (handler-fn action-event)))))
+
+(defn clear-tree
+  [tree-root]
+  (run ))
