@@ -26,6 +26,11 @@
    [javafx.scene.input Clipboard ClipboardContent KeyCode KeyCodeCombination KeyCombination KeyEvent]
    [javafx.scene.input KeyCombination$Modifier]))
 
+;; key code representing copy, Control+C
+(def KEY-COPY (KeyCodeCombination.
+               KeyCode/C
+               (into-array KeyCombination$Modifier [KeyCombination/CONTROL_ANY])))
+
 (defn development?
   "Returns true if we are running in the development environment."
   []
@@ -418,6 +423,7 @@
     component))
 
 (defn hbox
+  "Returns a new HBox containing the provided components."
   [components & {:keys [spacing insets]}]
   (let [box (HBox.)]
     (if spacing (.setSpacing box spacing))
@@ -429,6 +435,7 @@
     box))
 
 (defn vbox
+  "Returns a new VBox containing the provided components."
   [components & {:keys [spacing insets]}]
   (let [box (VBox.)]
     (if spacing (.setSpacing box spacing))
@@ -440,6 +447,7 @@
     box))
 
 (defn set-pref-size
+  "Sets the preferred width and height of the component."
   [component & {:keys [width height]}]
   (run
     (if width (.setPrefWidth component width))
@@ -447,10 +455,12 @@
   component)
 
 (defn tab
+  "Returns a new tab with the given name and component as its content."
   [name component]
   (Tab. name component))
 
 (defn tab-closing-policy
+  "Returns a closing policy for a keyword."
   [key-name]
   (cond
     (= :all key-name)
@@ -463,6 +473,8 @@
     TabPane$TabClosingPolicy/UNAVAILABLE))
 
 (defn tab-pane
+  "Returns a new TabPane containing the provided tabs and applying the supplied
+  closing policy to all of those tabs."
   [tabs & {:keys [closing-policy]}]
   (let [tab-panel (TabPane.)
         policy (tab-closing-policy closing-policy)]
@@ -472,27 +484,29 @@
       (run (.add (.getTabs tab-panel) tabs)))
     tab-panel))
 
-(def KEY-COPY (KeyCodeCombination.
-               KeyCode/C
-               (into-array KeyCombination$Modifier [KeyCombination/CONTROL_ANY])))
-
 (defn table-key-event-handler
+  "Returns a new TableKeyEventHandler that may be attached to a table and will
+  copy selected rows to the clipboard when 'Control+C' are pressed."
   []
   (reify
     EventHandler
     (handle [thix event]
       (if (.match KEY-COPY event)
         (let [table-view (.getSource event)
-              clipboard (ClipboardContent.)]
+              clipboard (ClipboardContent.)
+              selected-text (interpose
+                             "/t"
+                             (for [position (.getSelectedCells (.getSelectionModel table-view))]
+                               (.get (.getCellObservableValue
+                                      (.get (.getColumns table-view) (.getColumn position))
+                                      (.getRow position)))))]
           (.consume event)
           (.putString clipboard
                       (apply str
-                             (interpose "/t"
-                                        (for [position (.getSelectedCells (.getSelectionModel table-view))]
-                                          (.get (.getCellObservableValue (.get (.getColumns table-view) (.getColumn position))
-                                                                         (.getRow position)))))))
+                             selected-text))
           (.setContent (Clipboard/getSystemClipboard) clipboard))))))
 
-(defn install-copy-paste-handler
+(defn install-copy-handler
+  "Installs a handler on a table that will copy selected text to the clipboard."
   [tableview]
   (.setOnKeyPressed tableview (table-key-event-handler)))

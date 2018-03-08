@@ -241,7 +241,7 @@
         content-pane (jfx/border-pane :center tab-pane
                                       :bottom (jfx/hbox [progress-bar progress-text]
                                                         :spacing 8 :insets (jfx/insets 5 5 5 5)))]
-    (jfx/install-copy-paste-handler (:component tree-table))
+    (jfx/install-copy-handler (:component tree-table))
     (.setEditable (:editor text-pane) false)
     {:tree-table tree-table
      :editor text-pane
