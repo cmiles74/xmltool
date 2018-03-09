@@ -240,7 +240,7 @@
         progress-text (jfx/label "Welcome to XML Tool!")
         open-item (jfx/menu-item "Open...")
         quit-item (jfx/menu-item "Quit")
-        menu (jfx/menu-bar [(jfx/menu-item "File" [open-item quit-item])])
+        menu (jfx/menu-bar [(jfx/menu "File" [open-item quit-item])])
         content-pane (jfx/border-pane :center tab-pane
                                       :top menu
                                       :bottom (jfx/hbox [progress-bar progress-text]

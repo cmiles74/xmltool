@@ -15,8 +15,8 @@
    [javafx.event EventHandler]
    [javafx.geometry Insets Orientation]
    [javafx.scene Group Scene]
-   [javafx.scene.control Label Menu MenuBar ProgressBar ScrollPane ScrollPane$ScrollBarPolicy SplitPane
-    Tab TabPane TabPane$TabClosingPolicy
+   [javafx.scene.control Label Menu MenuBar MenuItem ProgressBar ScrollPane
+    ScrollPane$ScrollBarPolicy SplitPane Tab TabPane TabPane$TabClosingPolicy
     TreeTableCell TreeTableView TreeTableColumn TreeView TreeItem]
    [javafx.scene.image Image]
    [javafx.scene.layout BorderPane HBox VBox Priority]
@@ -507,6 +507,17 @@
   (.setOnKeyPressed tableview (table-key-event-handler)))
 
 (defn menu-item
+  ([name]
+   (menu-item name nil))
+  ([name item-seq]
+   (let [menu (MenuItem. name)]
+     (if item-seq
+       (if (sequential? item-seq)
+         (.addAll (.getItems menu) item-seq)
+         (.add (.getItems menu) item-seq)))
+     menu)))
+
+(defn menu
   ([name]
    (menu-item name nil))
   ([name item-seq]
