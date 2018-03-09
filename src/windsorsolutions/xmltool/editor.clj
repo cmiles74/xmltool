@@ -120,7 +120,7 @@
 (defn set-text
   "Sets the provided text for the editor."
   [editor text]
-  (.replaceText editor 0 0 text))
+  (.replaceText editor 0 (.length (.getText editor)) text))
 
 (defn scroll-to-top
   [component]

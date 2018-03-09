@@ -239,12 +239,14 @@
         progress-bar (jfx/progress-bar)
         progress-text (jfx/label "Welcome to XML Tool!")
         open-item (jfx/menu-item "Open...")
-        menu (jfx/menu-bar [(jfx/menu-item "File" open-item)])
+        quit-item (jfx/menu-item "Quit")
+        menu (jfx/menu-bar [(jfx/menu-item "File" [open-item quit-item])])
         content-pane (jfx/border-pane :center tab-pane
                                       :top menu
                                       :bottom (jfx/hbox [progress-bar progress-text]
                                                         :spacing 8 :insets (jfx/insets 5 5 5 5)))]
     (jfx/install-copy-handler (:component tree-table))
+    (jfx/set-progress progress-bar 0)
     (.setEditable (:editor text-pane) false)
     {:tree-table tree-table
      :editor text-pane
@@ -252,7 +254,8 @@
      :progress-bar progress-bar
      :progress-text progress-text
      :component content-pane
-     :open-menu-item open-item}))
+     :open-menu-item open-item
+     :quit-menu-item quit-item}))
 
 ;;
 ;; Functions for handling the message queues
@@ -318,8 +321,7 @@
   [window start-processing-fn]
   (jfx/open-file window
                  #(if %1
-                    (start-processing-fn %1)
-                    (jfx/close-window window))
+                    (start-processing-fn %1))
                  :title "Select an XML File to Inspect"
                  :filters (jfx/file-chooser-extension-filter "XML Files" "*.xml")))
 
@@ -372,17 +374,23 @@
         ;; function to start processing input or prompt for a file
         acquire-file-fn (fn []
                           (if xml-file
-                            (start-fn xml-file)
-                            (prompt-for-file @window start-fn)))]
+                            (start-fn xml-file)))] ;; (prompt-for-file @window start-fn)
 
     ;; add our stylesheet for the editor
     ;;(jfx/run (editor/add-stylesheet scene))
+
+    ;; add handlers for opening an new file
     (jfx/selection-handler (:open-menu-item panel)
                            (fn [event]
                              (prompt-for-file @window
                                               (fn [file-in]
                                                 (jfx/remove-leaves (:root (:tree-table panel)))
+                                                (editor/set-text (:editor (:editor panel)) " ")
                                                 (start-fn file-in)))))
+
+    ;; add a handler for quitting the application
+    (jfx/selection-handler (:quit-menu-item panel)
+                           (fn [event] (jfx/close-window @window)))
 
     ;; display our window
     (jfx/show-window @window
