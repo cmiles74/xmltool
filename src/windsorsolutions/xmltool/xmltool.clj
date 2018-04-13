@@ -153,7 +153,8 @@
    (catch-non-fatal-xml-parse-errors
     info-q #(let [xml-tree (xml/parse-xml file)]
               (build-tree-node (:root tree-table) xml-tree :msg-q count-q)
-              (jfx/run (editor/set-text (:editor xml-editor) @(future (xml/pretty-xml-out xml-tree)))
+              (jfx/run (editor/set-text (:editor xml-editor)
+                                        @(future (xml/pretty-xml-out xml-tree (slurp file))))
                 (editor/scroll-to-top (:component xml-editor)))))
     (catch #(= :fatal (:type %1)) exception
       (queue-error-message info-q
@@ -167,7 +168,8 @@
        (catch-non-fatal-xml-parse-errors info-q
         #(let [xml-tree (xml/parse-xml (xml/clean-xml file))]
                   (build-tree-node (:root tree-table) xml-tree :msg-q count-q :initial true)
-                  (jfx/run (editor/set-text (:editor xml-editor) @(future (xml/pretty-xml-out xml-tree)))
+                  (jfx/run (editor/set-text (:editor xml-editor)
+                                            @(future (xml/pretty-xml-out xml-tree (slurp file))))
                     (editor/scroll-to-top (:component xml-editor)))))
 
        ;; well, now we know we really can't parse this file :-(
@@ -312,7 +314,7 @@
                      :after-fn #(acquire-file-fn))
 
 
-    ;; workaround janky layout issue 
+    ;; workaround janky layout issue
     (future
       (Thread/sleep 500)
       (jfx/run (.setHeight @window (dec (.getHeight @window)))))

@@ -13,10 +13,6 @@
   (:import
    [windsorsolutions.xmltool.data TreeNode]))
 
-;;
-;; Functions to build UI components
-;;
-
 (defn tree-node-cell-renderer
   "Provides a renderer for a tree table column that will apply the provided
   'value-fn' to the backing data object of the row's cell."
@@ -39,15 +35,14 @@
   components with the following keys: :info-panel, :tree-table, :split-pane
   and :component, which is a component containing them all."
   []
-  (let [tree-table (jfx/tree-table
-                    (TreeNode. "Root" nil)
-                    (list
-                     (jfx/tree-table-column
-                      "Name" 250 (tree-node-cell-renderer #(.getName %1)))
-                     (jfx/wrappable-tree-table-column
-                      "Value"428 (tree-node-cell-renderer #(.getValue %1))))
-                    :root-visible false
-                    :root-expanded true)
+  (let [tree-table (jfx/tree-table (TreeNode. "Root" nil)
+                                   (list
+                                    (jfx/tree-table-column
+                                     "Name" 250 (tree-node-cell-renderer #(.getName %1)))
+                                    (jfx/wrappable-tree-table-column
+                                     "Value"428 (tree-node-cell-renderer #(.getValue %1))))
+                                   :root-visible false
+                                   :root-expanded true)
         text-pane (source-panel)
         console-pane (jfx/text-pane :insets (jfx/insets 5 5 5 5))
         tab-pane (jfx/tab-pane

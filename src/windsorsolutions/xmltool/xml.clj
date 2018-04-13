@@ -129,22 +129,26 @@
     factory))
 
 (defn pretty-xml-out
-  [xml-data]
-  (let [xml-str (strip-whitespace-str (write-xml-str xml-data))
-        factory (DocumentBuilderFactory/newInstance)
-        builder (.newDocumentBuilder factory)
-        document (.parse builder (ByteArrayInputStream. (.getBytes xml-str)))
-        transformer (.newTransformer (transformer-factory))
-        output-stream (ByteArrayOutputStream.)]
+  [xml-data raw-data]
+  (try
+    (let [xml-str (strip-whitespace-str (write-xml-str xml-data))
+          factory (DocumentBuilderFactory/newInstance)
+          builder (.newDocumentBuilder factory)
+          document (.parse builder (ByteArrayInputStream. (.getBytes xml-str)))
+          transformer (.newTransformer (transformer-factory))
+          output-stream (ByteArrayOutputStream.)]
 
-    ;; format the document
-    (.setOutputProperty transformer OutputKeys/INDENT "yes")
-    (.setOutputProperty transformer OutputKeys/ENCODING "UTF-8")
-    (.transform transformer
-                (DOMSource. document)
-                (StreamResult. (OutputStreamWriter. output-stream "utf-8")))
-    (.toString output-stream)))
-
+      ;; format the document
+      (.setOutputProperty transformer OutputKeys/INDENT "yes")
+      (.setOutputProperty transformer OutputKeys/ENCODING "UTF-8")
+      (.transform transformer
+                  (DOMSource. document)
+                  (StreamResult. (OutputStreamWriter. output-stream "utf-8")))
+      (.toString output-stream))
+    (catch Exception exception
+      (timbre/warn "Couldn't parse the parsed XML data! " exception
+                   "... Falling back to raw data")
+      raw-data)))
 
 (defmulti parse-xml
   "Parses an XML file and returns a map of it's data."
