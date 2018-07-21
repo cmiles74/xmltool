@@ -5,6 +5,10 @@ of an XML file at the office and the only one that anyone knew by name was calle
 ["XMLSpy" from Altova][0]. People who used it liked it, but the [cost was way too
 expensive][1] for the casual XML consumer. From that need, "XML Tool" was born.
 
+If you find this code useful in any way, please feel free to...
+
+<a href="https://www.buymeacoffee.com/cmiles74" target="_blank"><img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" alt="Buy Me A Coffee" style="height: 41px !important;width: 174px !important;box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;-webkit-box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;" ></a>
+
 ## What Does it Do?
 
 When you launch the application, the XML Tool window will appear. From there,
