@@ -1,4 +1,4 @@
-(defproject windsorsolutions/xmltool "0.1-SNAPSHOT"
+(defproject windsorsolutions/xmltool "1.0"
   :description "A GUI tool for managing and visualizing XML data"
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [org.clojure/core.async "0.4.474"]

@@ -16,7 +16,12 @@ through your data.
 
 It will also try to strip out any invalid characters should it come across them.
 If it does, it will log that fact in the output panel at the bottom of the
-window.
+window. 
+
+This application isn't really finished, you still can't search for text in your
+document, for instance. When it scans for bad characters, there's really only
+the one character that it's checking for right now. But I'll continue to work on
+it as I find time and as people report bugs or requests for improvements.
 
 ## Where Can I Get It?
 
