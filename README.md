@@ -12,7 +12,7 @@ that you can use to browse to your XML file. Once you have selected a file it
 will parse through it and display a nifty tree that you may used to browse
 through your data.
 
-![Screenshot](http://git-east.windsor.com/cmiles/xmltool/raw/master/documentation/screenshot.png)
+![Screenshot](https://raw.githubusercontent.com/cmiles74/xmltool/master/documentation/screenshot.png)
 
 It will also try to strip out any invalid characters should it come across them.
 If it does, it will log that fact in the output panel at the bottom of the
@@ -26,8 +26,7 @@ it as I find time and as people report bugs or requests for improvements.
 ## Where Can I Get It?
 
 The most recent build is [available
-here](http://git-east.windsor.com/cmiles/xmltool/-/jobs/artifacts/master/download?job=build).
-`:-D`
+here](https://github.com/cmiles74/xmltool/releases/tag/1.0). `:-D`
 
 ## Development
 
