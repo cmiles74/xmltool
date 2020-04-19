@@ -1,6 +1,7 @@
 lib
 build
 classes
+jlink
 *.jar
 pom.xml
 docs

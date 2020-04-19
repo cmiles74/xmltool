@@ -21,7 +21,7 @@
    [javafx.scene.image Image]
    [javafx.scene.layout BorderPane HBox VBox Priority]
    [javafx.scene.text Font Text TextFlow]
-   [javafx.stage FileChooser FileChooser$ExtensionFilter StageBuilder StageStyle Stage]
+   [javafx.stage FileChooser FileChooser$ExtensionFilter StageStyle Stage]
    [javafx.util Callback]
    [javafx.scene.input Clipboard ClipboardContent KeyCode KeyCodeCombination KeyCombination KeyEvent]
    [javafx.scene.input KeyCombination$Modifier]))

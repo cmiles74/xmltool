@@ -52,6 +52,8 @@ greater installed along with the matching version of JavaFX. Most Linux
 distributions will have packages for both but the majority only install Java by
 default, you often need to install the JavaFX package separately.
 
+    lein jlink init
+
 ### Building the Application
 
 This project uses [Leiningen][6] to manage the project, the installation
