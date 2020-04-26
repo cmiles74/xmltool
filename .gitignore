@@ -20,3 +20,4 @@ node_modules
 project.org
 tmp.*
 *.tmp
+dist/*
