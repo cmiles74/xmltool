@@ -30,14 +30,11 @@ it as I find time and as people report bugs or requests for improvements.
 ## Where Can I Get It?
 
 The most recent build is [available
-here](https://github.com/cmiles74/xmltool/releases/tag/1.0). `:-D` It includes a
-Java JAR that you may run as well as a double-clickable Windows executable. On
-Windows you can double-click the "xmltool.exe" file. On MacOS or Linux, you
-might be able to double click the JAR file. Everyone else will have to create
-their own launcher, to start XML Tool from the command line you can type the
-following:
-
-    $ java -jar xmltool-1.0-standalone.jar
+here](https://github.com/cmiles74/xmltool/releases/tag/1.1). `:-D` It's
+distributed as platform-specific bundles, mostly because of the way the Java
+module system works and our dependency on JavaFX. In any case, you can download
+the package for your platform and then run it by double-clicking the provided
+launcher.
 
 ## Development
 
@@ -47,57 +44,13 @@ Clojure or Java, you can blame [Miles][5]: he seems to actually _enjoy_ using
 Clojure and no matter times he says "never again" to Java, he just keeps coming
 back for more punishment.
 
-If you are going to work on the project, you will need to have Java 1.8 or
-greater installed along with the matching version of JavaFX. Most Linux
-distributions will have packages for both but the majority only install Java by
-default, you often need to install the JavaFX package separately.
-
-    lein jlink init
-
-### Building the Application
-
-This project uses [Leiningen][6] to manage the project, the installation
-instructions are super easy and are listed on their web page. If you want to
-build the Windows executable file, you'll also need to install [Launch4J][7]. Or
-you can use a Docker image, the "docker" directory contains script to start up a
-new image. `;-)`
-
-Once you have the pre-requisites installed building the project is very easy.
-Navigate to the project folder and then tell Leiningen to build you an
-"uberjar", that's one launch-able JAR archive that includes all of the
-dependencies.
-
-    $ lein uberjar
-    
-Leiningen will download all of the dependencies, compile the code and then
-bundle everything up into one executable JAR archive. Running the application is
-just as easy.
-
-    $ java -jar target/*standalone.jar
-    
-### Building the Windows Executable
-
-The Windows executable is handy because it takes that uberjar and wraps it in a
-launcher that anyone on Windows can use. It's important to remember, however,
-that Windows customers _need to have Java 1.8 installed_ to run the application.
-In the Windows environment, JavaFX is bundled along with the Java installer.
-
-You will need to add the Launch4J plugin to your personal Leiningen
-configuration. This can be found on your machine in the `~/.lein/profiles.clj`
-file. This file contains a Clojure map, add the following map under the `:user`
-key in that file.
-
-    {:plugins [[com.nervestaple/lein-launch4j "0.1.2"]]
-     :launch4j-install-dir "/opt/launch4j"}
-     
-Note that the `:launch4j-install-dir` should point to wherever you have
-installed Launch4J. `;-)`
-
-With that complete, you can instruct Leiningen to build the Windows executable.
-
-    $ lein launch4j
-
-The executable will be in the `target` folder.
+At this time this project is requiring you to be running on Java 9 or newer for
+doing any development work on the project. So, if you have that set, download
+the "jmods" file for your platform and version of Java from the [Gluon][12]
+website. You will want to unpack that archive and place it somewhere permanent
+on your machine and note the path. Edit the `project.clj` file provided with
+this project and set the `:jlink-modules-paths` key to point to the path were
+you unpacked the archive.
 
 ### The Development Environment
 
@@ -122,6 +75,85 @@ To test your work, you may startup the application.
     
 That will start up a new instance and prompt you for an XML file to parse.
 
+### Building the Application
+
+This project uses [Leiningen][6] to manage the project, the installation
+instructions are super easy and are listed on their web page. You man also use a
+Docker image, the "docker" directory contains script to start up a new image.
+`;-)`
+
+Navigate to the project folder and then tell Leiningen to build you a custom
+Java runtime and an "uberjar", that's a Java environment with all of the
+required modules and platform specific code and a launch-able JAR archive that
+includes all of the library dependencies.
+
+    $ lein jlink assemble
+    
+With that complete you can run the project inside that custom Java runtime like
+so:
+
+    $ cd image
+    $ bin/java -jar target/*standalone.jar
+    
+Or you can skip all that and just type in `lein run`.
+    
+### Building for Other Platforms
+
+The way the build works is that we take the provided JDK (usually the one in
+your `JAVA_HOME` directory) and that's used to build the custom Java runtime
+image. This works great, but if you think about it a minute, you'll see the
+problem. That's right: the Java runtime comes with a bunch of platform specific
+code!
+
+There is a solution: we download all of the JDKs for all of the platforms for 
+which we'd like to build. We then build the image for each one, using a different
+JDK to build the image. This is the route this project has taken.
+
+One last wrinkle is that we use platform specific tools to build the launcher
+for each platform. That is, you need to be running on Windows to build the
+Windows executable and, likewise, you need to be running on MacOS to build the
+executable for that platform. Linux is free and open source, we can build that
+one from any platform. `;-)`
+
+#### Building for Windows
+
+To build for Windows, you will need to have a Windows JDK installed. If you're
+already running on Windows then you're all set, otherwise you can set the path
+to the Windows JDK with the `:jlink-jdk-path` key on your `project.clj` file. We
+have to build for a couple of platforms we've added a profile to the project for
+this under the `:windows64` key; you can customize this to point to your Windows
+JDK. With that set, you can build a Windows image.
+
+    $ lein with-profile windows64 build-windows64-image
+    
+The image will be in the `dist/images` directory in the `windows64` folder.
+
+If you are acutally running on Windows, then you can also create a Windows
+executable. It's handy because it creates a launcher that uses the `java` from
+the custom runtime and uses it to launch the provided uberjar with just a
+double-cick.
+
+    $ lein with-profile windows64 build-windows64-exe
+    
+The whole Windows package will be in the `dist/windows64` folder, you'll see the
+launcher and if you double-click, it will launch the XML Tool.
+
+The launcher is nice but it doesn't have a snazzy icon, you can remedy that by
+writing the icon file into the executable. The [RCEdit][10] tool is bundled with
+this project (it's helpfully under the [MIT license][11]) and is used to get
+this done.
+
+    $ lein with-profile windows64 update-windows64-exe
+    
+Remembering all of that can be a hassle, if you're on Windows you can run all of
+those steps with just on Leiningen command.
+
+    $ lein build-windows64
+    
+You can take that `windows64` image in the `dist` directory and hand it out to
+your friends and colleagues, it's a protable application distribution for
+Windows. `:-)`
+
 ## The Icon
 
 The icon for the application was created by [bokehlicia][8] is licensed under
@@ -137,3 +169,6 @@ the [GNU General Public License][9].
 [7]: http://launch4j.sourceforge.net/
 [8]: https://bokehlicia.deviantart.com
 [9]: https://en.wikipedia.org/wiki/GNU_General_Public_License
+[10]: https://github.com/electron/rcedit
+[11]: https://github.com/electron/rcedit/blob/master/LICENSE
+[12]: https://gluonhq.com/products/javafx/

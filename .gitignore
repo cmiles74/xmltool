@@ -21,3 +21,4 @@ project.org
 tmp.*
 *.tmp
 dist/*
+image/*
