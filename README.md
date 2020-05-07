@@ -105,50 +105,35 @@ image. This works great, but if you think about it a minute, you'll see the
 problem. That's right: the Java runtime comes with a bunch of platform specific
 code!
 
-There is a solution: we download all of the JDKs for all of the platforms for 
-which we'd like to build. We then build the image for each one, using a different
-JDK to build the image. This is the route this project has taken.
+There's not really any good solution for this, the `jlink` tool for another
+platform won't run and when you run it on your platform it assumes that your
+platform is the target. To build for other platforms you'd need to run under a
+virtual machine or actually on the other platform.
 
-One last wrinkle is that we use platform specific tools to build the launcher
-for each platform. That is, you need to be running on Windows to build the
-Windows executable and, likewise, you need to be running on MacOS to build the
-executable for that platform. Linux is free and open source, we can build that
-one from any platform. `;-)`
+#### Building
 
-#### Building for Windows
-
-To build for Windows, you will need to have a Windows JDK installed. If you're
-already running on Windows then you're all set, otherwise you can set the path
-to the Windows JDK with the `:jlink-jdk-path` key on your `project.clj` file. We
-have to build for a couple of platforms we've added a profile to the project for
-this under the `:windows64` key; you can customize this to point to your Windows
-JDK. With that set, you can build a Windows image.
+There are profiles for all of the platforms supported by the project in the
+`project.clj` file. For instance, if you were building for Windows you'd ask
+Leiningen to run the `build-dist` tag with the `windows64` profile.
 
     $ lein with-profile windows64 build-windows64-image
     
-The image will be in the `dist/images` directory in the `windows64` folder.
-
-If you are acutally running on Windows, then you can also create a Windows
-executable. It's handy because it creates a launcher that uses the `java` from
-the custom runtime and uses it to launch the provided uberjar with just a
-double-cick.
+The image will be in the `dist/images` directory in the `windows64` folder. You
+can also create a launcher for your platform. The launcher will use the `java`
+from the custom runtime and to start the provided uberjar with just a
+double-cick. This task below is called as part of the `build-dist` task.
 
     $ lein with-profile windows64 build-windows64-exe
     
-The whole Windows package will be in the `dist/windows64` folder, you'll see the
+The whole package will be in the `dist/windows64` folder, you'll see the
 launcher and if you double-click, it will launch the XML Tool.
 
 The launcher is nice but it doesn't have a snazzy icon, you can remedy that by
 writing the icon file into the executable. The [RCEdit][10] tool is bundled with
 this project (it's helpfully under the [MIT license][11]) and is used to get
-this done.
+this done. This is also part of the `build-dist` task.
 
     $ lein with-profile windows64 update-windows64-exe
-    
-Remembering all of that can be a hassle, if you're on Windows you can run all of
-those steps with just on Leiningen command.
-
-    $ lein build-windows64
     
 You can take that `windows64` image in the `dist` directory and hand it out to
 your friends and colleagues, it's a protable application distribution for
