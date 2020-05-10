@@ -18,9 +18,10 @@
   :aliases {"run" ["do" "jlink" "init," "run"]
             "clean" ["do" "jlink" "clean," "clean"]
             "repl" ["do" "jlink" "init," "repl"]
-            "update-windows64-exe" ["shell" "bin/rcedit-x64.exe"
+            "update-win-exe" ["shell" "bin/rcedit-x64.exe"
                                     "${:dist-target}/${:dist-platform}/xmltool.exe"
                                     "--set-icon" "resources/rocket.ico"]
+            "build-image" ["do" "clean," "jlink" "assemble"]
             "build-exe" ["shell" "${:java-cmd}" "-jar" "bin/Packr.jar"
                          "--platform" "${:dist-platform}"
                          "--jdk" "${:jlink-image-path}"
@@ -28,22 +29,17 @@
                          "--classpath" "target/xmltool-*-standalone.jar"
                          "--mainclass" "${:main}"
                          "--output" "${:dist-target}/${:dist-platform}"]
-            "build-image" ["do" "clean," "jlink" "assemble"]
-            "build-dist" ["with-profile" "windows64" "do"
-                          "build-image,"
-                          "build-exe,"
-                          "update-windows64-exe"]}
+            "build-dist" ["do" "build-image," "build-exe"]}
   :profiles {:uberjar {:aot :all}
              :dev {:source-paths ["dev"]
                    :resource-paths ["dev-resources"]
                    :jlink-module-paths ["C:\\Program Files\\Java\\javafx-jmods-14.0.1"]}
-             :macos  {:dist-platform "macos64"
-                      :jlink-image-path "dist/image/macos64"
-                      :jlink-archive-name "dist/macos-xmltool"}
              :linux64 {:dist-platform "linux64"
-                       :jlink-image-path "dist/image/linux64"
-                       :jlink-archive-name "dist/linux64-xmltool"}
+                       :jlink-image-path "dist/image/linux64"}
+             :mac {:dist-platform "mac"
+                     :jlink-image-path "dist/image/mac"}
              :windows64 {:dist-platform "windows64"
                          :jlink-image-path "dist/image/windows64"
-                         :jlink-archive-name "dist/windows64-xmltool"
-                         :jlink-archive "zip"}})
+                         :aliases {"build-dist" ["do" "build-image,"
+                                                 "build-exe,"
+                                                 "update-win-exe"]}}})

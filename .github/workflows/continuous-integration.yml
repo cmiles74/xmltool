@@ -1,0 +1,43 @@
+name: Continuous Integration
+
+on: [push]
+
+jobs:
+  build-linux:
+    runs-on: [ubuntu-latest]
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v2
+      - name: Setup Java
+        uses: actions/setup-java@v1
+        with:
+          java-version: 13
+          java-package: jdk+fx
+      - name: Build project
+        run: bin/lein with-profile linux64 build-dist
+  build-macos:
+    runs-on: [macos-latest]
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v2
+      - name: Setup Java
+        uses: actions/setup-java@v1
+        with:
+          java-version: 13
+          java-package: jdk+fx
+      - name: Build project
+        run: bin/lein with-profile mac build-dist
+  build-windows:
+    runs-on: [windows-latest]
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v2
+      - name: Setup Java
+        uses: actions/setup-java@v1
+        with:
+          java-version: 13
+          java-package: jdk+fx
+      - name: Build project
+        run: bin/lein self-install; bin/lein with-profile windows64 build-dist
+
+
