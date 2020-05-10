@@ -15,6 +15,11 @@ jobs:
           java-package: jdk+fx
       - name: Build project
         run: bin/lein with-profile linux64 build-dist
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v1
+        with:
+          name: linux64-xmltool
+          path: dist/linux64
   build-macos:
     runs-on: [macos-latest]
     steps:
@@ -27,6 +32,11 @@ jobs:
           java-package: jdk+fx
       - name: Build project
         run: bin/lein with-profile mac build-dist
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v1
+        with:
+          name: macos-xmltool
+          path: dist/mac
   build-windows:
     runs-on: [windows-latest]
     steps:
@@ -39,5 +49,9 @@ jobs:
           java-package: jdk+fx
       - name: Build project
         run: bin/lein self-install; bin/lein with-profile windows64 build-dist
-
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v1
+        with:
+          name: windows64-xmltool
+          path: dist/windows64
 
