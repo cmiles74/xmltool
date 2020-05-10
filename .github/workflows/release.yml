@@ -19,17 +19,17 @@ jobs:
       - name: Build project
         run: bin/lein with-profile linux64 build-dist
       - name: Upload Artifact
+        id: upload_artifact
         uses: actions/upload-artifact@v1
         with:
           name: linux64-xmltool
           path: dist/linux64
       - name: Upload Release Asset
-        id: upload-release-asset 
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.upload_release_asset.outputs.upload_url }}
+          upload_url: ${{ steps.upload_artifact.outputs.upload_url }}
           asset_path: ./linux64-xmltool
           asset_name: linux64-xmltool.zip
           asset_content_type: application/zip
@@ -46,17 +46,17 @@ jobs:
       - name: Build project
         run: bin/lein with-profile mac build-dist
       - name: Upload Artifact
+        id: upload_artifact
         uses: actions/upload-artifact@v1
         with:
           name: macos-xmltool
           path: dist/mac
       - name: Upload Release Asset
-        id: upload-release-asset 
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.upload_release_asset.outputs.upload_url }}
+          upload_url: ${{ steps.upload_artifact.outputs.upload_url }}
           asset_path: ./macos-xmltool
           asset_name: macos-xmltool.zip
           asset_content_type: application/zip
@@ -73,17 +73,17 @@ jobs:
       - name: Build project
         run: bin/lein self-install; bin/lein with-profile windows64 build-dist
       - name: Upload Artifact
+        id: upload_artifact
         uses: actions/upload-artifact@v1
         with:
           name: windows64-xmltool
           path: dist/windows64
       - name: Upload Release Asset
-        id: upload-release-asset 
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.upload_release_asset.outputs.upload_url }}
+          upload_url: ${{ steps.upload_artifact.outputs.upload_url }}
           asset_path: ./windows64-xmltool
           asset_name: windows64-xmltool.zip
           asset_content_type: application/zip
