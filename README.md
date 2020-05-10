@@ -1,5 +1,7 @@
 # XML Tools
 
+![Continuous Integration](https://github.com/cmiles74/xmltool/workflows/Continuous%20Integration/badge.svg)
+
 We were looking for a graphical tool that would let you browse over the contents
 of an XML file at the office and the only one that anyone knew by name was called
 ["XMLSpy" from Altova][0]. People who used it liked it, but the [cost was way too
