@@ -29,7 +29,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.upload_artifact.outputs.upload_url }}
+          upload_url: ${{ steps.upload_release_asset.outputs.upload_url }}
           asset_path: ./linux64-xmltool
           asset_name: linux64-xmltool.zip
           asset_content_type: application/zip
@@ -56,7 +56,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.upload_artifact.outputs.upload_url }}
+          upload_url: ${{ steps.upload_release_asset.outputs.upload_url }}
           asset_path: ./macos-xmltool
           asset_name: macos-xmltool.zip
           asset_content_type: application/zip
@@ -83,7 +83,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.upload_artifact.outputs.upload_url }}
+          upload_url: ${{ steps.upload_release_asset.outputs.upload_url }}
           asset_path: ./windows64-xmltool
           asset_name: windows64-xmltool.zip
           asset_content_type: application/zip
