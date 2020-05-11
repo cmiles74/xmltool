@@ -25,6 +25,8 @@
             "build-exe" ["shell" "${:java-cmd}" "-jar" "bin/Packr.jar"
                          "--platform" "${:dist-platform}"
                          "--jdk" "${:jlink-image-path}"
+                         "--icon" "resources/rocket.icns"
+                         "--bundle" "com.windsorsolutions.xmltool"
                          "--executable" "xmltool"
                          "--classpath" "target/xmltool-*-standalone.jar"
                          "--mainclass" "${:main}"
