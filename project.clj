@@ -22,11 +22,18 @@
                                     "${:dist-target}/${:dist-platform}/xmltool.exe"
                                     "--set-icon" "resources/rocket.ico"]
             "build-image" ["do" "clean," "jlink" "assemble"]
-            "build-exe" ["shell" "${:java-cmd}" "-jar" "bin/Packr.jar"
+            "build-mac-exe" ["shell" "${:java-cmd}" "-jar" "bin/Packr.jar"
                          "--platform" "${:dist-platform}"
                          "--jdk" "${:jlink-image-path}"
                          "--icon" "resources/rocket.icns"
                          "--bundle" "com.windsorsolutions.xmltool"
+                         "--executable" "xmltool"
+                         "--classpath" "target/xmltool-*-standalone.jar"
+                         "--mainclass" "${:main}"
+                         "--output" "${:dist-target}/${:dist-platform}/xmltool.app"]
+            "build-exe" ["shell" "${:java-cmd}" "-jar" "bin/Packr.jar"
+                         "--platform" "${:dist-platform}"
+                         "--jdk" "${:jlink-image-path}"
                          "--executable" "xmltool"
                          "--classpath" "target/xmltool-*-standalone.jar"
                          "--mainclass" "${:main}"
@@ -39,7 +46,9 @@
              :linux64 {:dist-platform "linux64"
                        :jlink-image-path "dist/image/linux64"}
              :mac {:dist-platform "mac"
-                     :jlink-image-path "dist/image/mac"}
+                   :jlink-image-path "dist/image/mac"
+                   :aliases {"build-dist" ["do" "build-image,"
+                                           "build-mac-exe"]}}
              :windows64 {:dist-platform "windows64"
                          :jlink-image-path "dist/image/windows64"
                          :aliases {"build-dist" ["do" "build-image,"
