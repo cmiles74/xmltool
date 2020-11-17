@@ -39,10 +39,10 @@ jobs:
         with:
           name: linux64-xmltool
           path: dist/linux64
-      - name: Download Artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: linux64-xmltool
+      - name: Create Artifact Archive
+        uses: montudor/action-zip@v0.1.0
+          with:
+            args: zip -qq -r xmltool-linux64.zip dist/linux64
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
@@ -74,18 +74,18 @@ jobs:
         with:
           name: macos-xmltool
           path: dist/mac
-      - name: Download Artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: macos-xmltool
+      - name: Create Artifact Archive
+        uses: montudor/action-zip@v0.1.0
+          with:
+            args: zip -qq -r xmltool-macos.zip dist/mac
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.update_release_draft.outputs.upload_url }}
-          asset_path: macos-xmltool.zip
-          asset_name: macos-xmltool.zip
+          asset_path: xmltool-macos.zip
+          asset_name: xmltool-macos.zip
           asset_content_type: application/zip
   build-windows:
     needs: update_release_draft
@@ -109,18 +109,18 @@ jobs:
         with:
           name: windows64-xmltool
           path: dist/windows64
-      - name: Download Artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: windows64-xmltool
+      - name: Create Artifact Archive
+        uses: montudor/action-zip@v0.1.0
+          with:
+            args: zip -qq -r xmltool-windows64.zip dist/windows64
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.update_release_draft.outputs.upload_url }}
-          asset_path: windows64-xmltool.zip
-          asset_name: windows64-xmltool.zip
+          asset_path: xmltool-windows64.zip
+          asset_name: xmltool-windows64.zip
           asset_content_type: application/zip
 
 
