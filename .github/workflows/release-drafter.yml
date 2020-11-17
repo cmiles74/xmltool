@@ -1,0 +1,112 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - 'main'
+
+jobs:
+  update_release_draft:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: release-drafter/release-drafter@v5
+        with:
+          # (Optional) specify config name to use, relative to .github/. Default: release-drafter.yml
+          # config-name: my-config.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  build-linux:
+    needs: update_release_draft
+    runs-on: [ubuntu-latest]
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v2
+      - name: Setup Java
+        uses: actions/setup-java@v1
+        with:
+          java-version: 13
+          java-package: jdk+fx
+      - name: Setup Leiningen
+        uses: DeLaGuardo/setup-clojure@master
+        with:
+          lein: latest
+      - name: Build project
+        run: lein with-profile linux64 build-dist
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v1
+        with:
+          name: linux64-xmltool
+          path: dist/linux64
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.update_release_draft.outputs.upload_url }}
+          asset_path: dist/linux64
+          asset_name: xmltool-linux64.zip
+          asset_content_type: application/zip
+  build-macos:
+    needs: update_release_draft
+    runs-on: [macos-latest]
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v2
+      - name: Setup Java
+        uses: actions/setup-java@v1
+        with:
+          java-version: 13
+          java-package: jdk+fx
+      - name: Setup Leiningen
+        uses: DeLaGuardo/setup-clojure@master
+        with:
+          lein: latest
+      - name: Build project
+        run: lein with-profile mac build-dist
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v1
+        with:
+          name: macos-xmltool
+          path: dist/mac
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.update_release_draft.outputs.upload_url }}
+          asset_path: dist/mac
+          asset_name: xmltool-mac.zip
+          asset_content_type: application/zip
+  build-windows:
+    needs: update_release_draft
+    runs-on: [windows-latest]
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v2
+      - name: Setup Java
+        uses: actions/setup-java@v1
+        with:
+          java-version: 13
+          java-package: jdk+fx
+      - name: Setup Leiningen
+        uses: DeLaGuardo/setup-clojure@master
+        with:
+          lein: latest
+      - name: Build project
+        run: lein with-profile windows64 build-dist
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v1
+        with:
+          name: windows64-xmltool
+          path: dist/windows64
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.update_release_draft.outputs.upload_url }}
+          asset_path: dist/windows64
+          asset_name: xmltool-windows64.zip
+          asset_content_type: application/zip
+
+
