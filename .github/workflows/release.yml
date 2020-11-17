@@ -40,7 +40,7 @@ jobs:
           name: linux64-xmltool
           path: dist/linux64
       - name: Create Artifact Archive
-        run: tar -zcf dist/linux64 xmltool-linux64.tar.gz
+        run: tar -zcf xmltool-linux64.tar.gz dist/linux64
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
@@ -73,7 +73,7 @@ jobs:
           name: macos-xmltool
           path: dist/mac
       - name: Create Artifact Archive
-        run: zip -r dist/mac xmltools-macos.zip
+        run: zip -r xmltools-macos.zip dist/mac
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
