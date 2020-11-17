@@ -11,8 +11,7 @@ jobs:
     steps:
       - uses: release-drafter/release-drafter@v5
         with:
-          # (Optional) specify config name to use, relative to .github/. Default: release-drafter.yml
-          # config-name: my-config.yml
+          config-name: release-drafter.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   build-linux:
@@ -42,7 +41,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ upload_url }}
+          upload_url: ${{ steps.update_release_draft.upload_url }}
           asset_path: dist/linux64
           asset_name: xmltool-linux64.zip
           asset_content_type: application/zip
@@ -73,7 +72,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ upload_url }}
+          upload_url: ${{ steps.update_release_draft.upload_url }}
           asset_path: dist/mac
           asset_name: xmltool-mac.zip
           asset_content_type: application/zip
@@ -104,7 +103,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ upload_url }}
+          upload_url: ${{ steps.update_release_draft.upload_url }}
           asset_path: dist/windows64
           asset_name: xmltool-windows64.zip
           asset_content_type: application/zip
