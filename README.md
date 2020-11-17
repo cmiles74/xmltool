@@ -18,7 +18,7 @@ clock on the "File" menu and choose "Open..." to browse to the XML file you'd
 like to inspect. XML Tool will parse through your file and display a nifty tree
 that you may use to browse through your data.
 
-![Screenshot](https://raw.githubusercontent.com/cmiles74/xmltool/master/documentation/screenshot.png)
+![Screenshot](https://raw.githubusercontent.com/cmiles74/xmltool/release/documentation/screenshot.png)
 
 It will also try to strip out any invalid characters should it come across them.
 If it does, it will log that fact in the "Console" tab, accessible from the top
