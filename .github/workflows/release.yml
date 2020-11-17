@@ -41,8 +41,8 @@ jobs:
           path: dist/linux64
       - name: Create Artifact Archive
         uses: montudor/action-zip@v0.1.0
-          with:
-            args: zip -qq -r xmltool-linux64.zip dist/linux64
+        with:
+          args: zip -qq -r xmltool-linux64.zip dist/linux64
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
@@ -76,8 +76,8 @@ jobs:
           path: dist/mac
       - name: Create Artifact Archive
         uses: montudor/action-zip@v0.1.0
-          with:
-            args: zip -qq -r xmltool-macos.zip dist/mac
+        with:
+          args: zip -qq -r xmltool-macos.zip dist/mac
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
@@ -111,8 +111,8 @@ jobs:
           path: dist/windows64
       - name: Create Artifact Archive
         uses: montudor/action-zip@v0.1.0
-          with:
-            args: zip -qq -r xmltool-windows64.zip dist/windows64
+        with:
+          args: zip -qq -r xmltool-windows64.zip dist/windows64
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
