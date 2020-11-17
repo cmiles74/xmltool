@@ -118,14 +118,14 @@ There are profiles for all of the platforms supported by the project in the
 `project.clj` file. For instance, if you were building for Windows you'd ask
 Leiningen to run the `build-dist` tag with the `windows64` profile.
 
-    $ lein with-profile windows64 build-windows64-image
+    $ lein with-profile windows64 build-image
     
 The image will be in the `dist/images` directory in the `windows64` folder. You
 can also create a launcher for your platform. The launcher will use the `java`
 from the custom runtime and to start the provided uberjar with just a
 double-cick. This task below is called as part of the `build-dist` task.
 
-    $ lein with-profile windows64 build-windows64-exe
+    $ lein with-profile windows64 build-exe
     
 The whole package will be in the `dist/windows64` folder, you'll see the
 launcher and if you double-click, it will launch the XML Tool.
@@ -135,7 +135,7 @@ writing the icon file into the executable. The [RCEdit][10] tool is bundled with
 this project (it's helpfully under the [MIT license][11]) and is used to get
 this done. This is also part of the `build-dist` task.
 
-    $ lein with-profile windows64 update-windows64-exe
+    $ lein with-profile windows64 update-win-exe
     
 You can take that `windows64` image in the `dist` directory and hand it out to
 your friends and colleagues, it's a protable application distribution for
