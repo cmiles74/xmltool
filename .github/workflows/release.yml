@@ -39,13 +39,17 @@ jobs:
         with:
           name: linux64-xmltool
           path: dist/linux64
+      - name: Download Artifact
+        uses: actions/download-artifact@v2
+          with:
+            name: linux64-xmltool
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.update_release_draft.outputs.upload_url }}
-          asset_path: dist/linux64
+          asset_path: xmltool-linux64.zip
           asset_name: xmltool-linux64.zip
           asset_content_type: application/zip
   build-macos:
@@ -70,14 +74,18 @@ jobs:
         with:
           name: macos-xmltool
           path: dist/mac
+      - name: Download Artifact
+        uses: actions/download-artifact@v2
+          with:
+            name: macos-xmltool
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.update_release_draft.outputs.upload_url }}
-          asset_path: dist/mac
-          asset_name: xmltool-mac.zip
+          asset_path: macos-xmltool.zip
+          asset_name: macos-xmltool.zip
           asset_content_type: application/zip
   build-windows:
     needs: update_release_draft
@@ -101,14 +109,18 @@ jobs:
         with:
           name: windows64-xmltool
           path: dist/windows64
+      - name: Download Artifact
+        uses: actions/download-artifact@v2
+          with:
+            name: windows64-xmltool
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.update_release_draft.outputs.upload_url }}
-          asset_path: dist/windows64
-          asset_name: xmltool-windows64.zip
+          asset_path: windows64-xmltool.zip
+          asset_name: windows64-xmltool.zip
           asset_content_type: application/zip
 
 
