@@ -9,7 +9,7 @@
   :plugins [[lein-jlink "0.3.0"]
             [lein-shell "0.5.0"]]
   :middleware [leiningen.jlink/middleware]
-  :jlink-module-paths ["C:\\Program Files\\Java\\javafx-jmods-14.0.1"]
+  :jlink-module-paths ["C:\\Program Files\\AdoptOpenJDK\\javafx-jmods-11.0.2"]
   :jlink-modules ["javafx.base" "javafx.controls" "javafx.fxml" "javafx.graphics"
                   "javafx.media""javafx.swing" "javafx.web" "java.sql"]
   :main windsorsolutions.xmltool.main
