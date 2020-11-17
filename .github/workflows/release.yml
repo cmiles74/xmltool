@@ -40,17 +40,15 @@ jobs:
           name: linux64-xmltool
           path: dist/linux64
       - name: Create Artifact Archive
-        uses: montudor/action-zip@v0.1.0
-        with:
-          args: zip -qq -r xmltool-linux64.zip dist/linux64
+        run: tar -zcf dist/linux64 xmltool-linux64.tar.gz
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.update_release_draft.outputs.upload_url }}
-          asset_path: xmltool-linux64.zip
-          asset_name: xmltool-linux64.zip
+          asset_path: xmltool-linux64.tar.gz
+          asset_name: xmltool-linux64.tar.gz
           asset_content_type: application/zip
   build-macos:
     needs: update_release_draft
@@ -75,9 +73,7 @@ jobs:
           name: macos-xmltool
           path: dist/mac
       - name: Create Artifact Archive
-        uses: montudor/action-zip@v0.1.0
-        with:
-          args: zip -qq -r xmltool-macos.zip dist/mac
+        run: zip -r dist/mac xmltools-macos.zip
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
@@ -110,7 +106,6 @@ jobs:
           name: windows64-xmltool
           path: dist/windows64
       - name: Create Artifact Archive
-        shell: powershell
         run: compress-archive -path dist/windows64 -destinationpath xmltools-windows64.zip
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
