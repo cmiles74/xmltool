@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - '*'
-      - '!3-ci-fixes'
+      - '!release'
 
 jobs:
   build-linux:
