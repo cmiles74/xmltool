@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - '*'
-      - '!main'
+      - '!3-ci-fixes'
 
 jobs:
   build-linux:
@@ -15,7 +15,7 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v1
         with:
-          java-version: 13
+          java-version: 15
           java-package: jdk+fx
       - name: Setup Leiningen
         uses: DeLaGuardo/setup-clojure@master
@@ -36,7 +36,7 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v1
         with:
-          java-version: 13
+          java-version: 15
           java-package: jdk+fx
       - name: Setup Leiningen
         uses: DeLaGuardo/setup-clojure@master
@@ -57,7 +57,7 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v1
         with:
-          java-version: 13
+          java-version: 15
           java-package: jdk+fx
       - name: Setup Leiningen
         uses: DeLaGuardo/setup-clojure@master
