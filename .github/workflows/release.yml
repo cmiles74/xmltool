@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     branches:
-      - 'release'
+      - 'main'
 
 jobs:
   update_release_draft:
@@ -40,7 +40,7 @@ jobs:
           name: linux64-xmltool
           path: dist/linux64
       - name: Create Artifact Archive
-        run: tar -zcf xmltool-linux64.tar.gz dist/linux64
+        run: cd dist; tar -zcf xmltool-linux64.tar.gz linux64; mv xmltool-linux64.tar.gz ..
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
@@ -73,7 +73,7 @@ jobs:
           name: macos-xmltool
           path: dist/mac
       - name: Create Artifact Archive
-        run: zip -r xmltool-macos.zip dist/mac
+        run: cd dist; zip -r xmltool-macos.zip mac; mv xmltool-macos.zip ..
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
@@ -106,7 +106,7 @@ jobs:
           name: windows64-xmltool
           path: dist/windows64
       - name: Create Artifact Archive
-        run: compress-archive -path dist/windows64 -destinationpath xmltool-windows64.zip
+        run: cd dist; compress-archive -path windows64 -destinationpath ..\xmltool-windows64.zip;
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
