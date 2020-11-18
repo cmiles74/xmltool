@@ -15,6 +15,7 @@
   :main windsorsolutions.xmltool.main
   :resource-paths ["resources"]
   :dist-target "dist"
+  :dist-version "1.0"
   :aliases {"run" ["do" "jlink" "init," "run"]
             "clean" ["do" "jlink" "clean," "clean"]
             "repl" ["do" "jlink" "init," "repl"]
@@ -28,14 +29,14 @@
                          "--icon" "resources/rocket.icns"
                          "--bundle" "com.windsorsolutions.xmltool"
                          "--executable" "xmltool"
-                         "--classpath" "target/xmltool-*-standalone.jar"
+                         "--classpath" "target/xmltool-${:dist-version}-standalone.jar"
                          "--mainclass" "${:main}"
                          "--output" "${:dist-target}/${:dist-platform}/xmltool.app"]
             "build-exe" ["shell" "${:java-cmd}" "-jar" "bin/Packr.jar"
                          "--platform" "${:dist-platform}"
                          "--jdk" "${:jlink-image-path}"
                          "--executable" "xmltool"
-                         "--classpath" "target/xmltool-*-standalone.jar"
+                         "--classpath" "target/xmltool-${:dist-version}-standalone.jar"
                          "--mainclass" "${:main}"
                          "--output" "${:dist-target}/${:dist-platform}"]
             "build-dist" ["do" "build-image," "build-exe"]}
