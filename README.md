@@ -31,8 +31,7 @@ it as I find time and as people report bugs or requests for improvements.
 
 ## Where Can I Get It?
 
-The most recent build is [available
-here](https://github.com/cmiles74/xmltool/releases/tag/1.1). `:-D` It's
+The most recent build is [available on our release page](https://github.com/cmiles74/xmltool/releases). `:-D` It's
 distributed as platform-specific bundles, mostly because of the way the Java
 module system works and our dependency on JavaFX. In any case, you can download
 the package for your platform and then run it by double-clicking the provided
@@ -46,8 +45,9 @@ Clojure or Java, you can blame [Miles][5]: he seems to actually _enjoy_ using
 Clojure and no matter times he says "never again" to Java, he just keeps coming
 back for more punishment.
 
-At this time this project is requiring you to be running on Java 9 or newer for
-doing any development work on the project. So, if you have that set, download
+At this time this project requires you to be running on a recent version of Java
+to do
+any development work on the project. So, if you have that set, download
 the "jmods" file for your platform and version of Java from the [Gluon][12]
 website. You will want to unpack that archive and place it somewhere permanent
 on your machine and note the path. Edit the `project.clj` file provided with
@@ -57,7 +57,11 @@ you unpacked the archive.
 ### The Development Environment
 
 Things will vary from tool to tool, but the simplest development environment is
-simply asking Leiningen to gather the dependencies and present you with an
+simply asking Leiningen build a custom Java environment that includes JavaFX...
+
+    $ lein build-image
+
+The you can have Lein gather the dependencies and present you with an
 interactive session.
 
     $ lein repl
@@ -89,15 +93,21 @@ Java runtime and an "uberjar", that's a Java environment with all of the
 required modules and platform specific code and a launch-able JAR archive that
 includes all of the library dependencies.
 
-    $ lein jlink assemble
-    
-With that complete you can run the project inside that custom Java runtime like
-so:
+    $ lein with-profile YOUR_PLATFORM build-dist
 
-    $ cd image
-    $ bin/java -jar target/*standalone.jar
-    
-Or you can skip all that and just type in `lein run`.
+This will build the distribution for your platform. Right now your options are
+"linux64", "macos" or "windows64". The "64" indicates that a 64-bit native
+executable will be built.
+
+In the "dist" folder there will be a folder named after your platform, inside of
+that directory will be the custom JRE for the project, the standalone "uberjar"
+for the project, a native launcher and a small configuration file for that
+native launcher.
+
+If you're just looking to run the application you can always just have Leiningen
+start it for you with...
+
+     $ lein run
     
 ### Building for Other Platforms
 
@@ -110,36 +120,9 @@ code!
 There's not really any good solution for this, the `jlink` tool for another
 platform won't run and when you run it on your platform it assumes that your
 platform is the target. To build for other platforms you'd need to run under a
-virtual machine or actually on the other platform.
-
-#### Building
-
-There are profiles for all of the platforms supported by the project in the
-`project.clj` file. For instance, if you were building for Windows you'd ask
-Leiningen to run the `build-dist` tag with the `windows64` profile.
-
-    $ lein with-profile windows64 build-image
-    
-The image will be in the `dist/images` directory in the `windows64` folder. You
-can also create a launcher for your platform. The launcher will use the `java`
-from the custom runtime and to start the provided uberjar with just a
-double-cick. This task below is called as part of the `build-dist` task.
-
-    $ lein with-profile windows64 build-exe
-    
-The whole package will be in the `dist/windows64` folder, you'll see the
-launcher and if you double-click, it will launch the XML Tool.
-
-The launcher is nice but it doesn't have a snazzy icon, you can remedy that by
-writing the icon file into the executable. The [RCEdit][10] tool is bundled with
-this project (it's helpfully under the [MIT license][11]) and is used to get
-this done. This is also part of the `build-dist` task.
-
-    $ lein with-profile windows64 update-win-exe
-    
-You can take that `windows64` image in the `dist` directory and hand it out to
-your friends and colleagues, it's a protable application distribution for
-Windows. `:-)`
+virtual machine or actually on the other platform. This project uses GitHub
+actions for building the project, when you push to a branch GitHub will build
+distributions for each supported platform.
 
 ## The Icon
 
