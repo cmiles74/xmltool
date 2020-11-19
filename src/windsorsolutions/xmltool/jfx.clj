@@ -76,6 +76,13 @@
                (timbre/warn "Exception in JFX Application thread: " exception#)
                (timbre/debug exception#)))))))
 
+(defn label
+  "Returns a new label with the provided content."
+  ([]
+   (label nil))
+  ([content]
+   (Label. content)))
+
 (defn add-leaves
   "Adds the provided leaf or leaves TreeItem to the provided parent TreeItem."
   [parent leaves]
@@ -168,6 +175,8 @@
     (.setAll (.getColumns tree-table)
              (if (sequential? columns) columns (list columns)))
     (.setShowRoot tree-table root-visible)
+    (.setPlaceholder tree-table (label (str "Select \"Open\" from under the \"File\" "
+                                            "menu to select an XML file to view.")))
     (if root-expanded (.setExpanded root root-expanded))
     {:root root :component tree-table}))
 
@@ -212,12 +221,6 @@
     (if width (.setMaxWidth text-pane width))
     (if insets (.setPadding text-pane insets))
     text-pane))
-
-(defn label
-  ([]
-   (label nil))
-  ([content]
-   (Label. content)))
 
 (defn group
   "Returns a new Group containing the provided components."
@@ -391,6 +394,10 @@
 (defn set-progress
   [bar progress]
   (run (.setProgress bar progress)))
+
+(defn set-progress-indeterminate
+  [bar]
+  (run (.setProgress bar ProgressBar/INDETERMINATE_PROGRESS)))
 
 (defn priority-for-key
   "Returns a Priority for the provided key. Valid keys are :always, :never
