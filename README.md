@@ -42,12 +42,11 @@ launcher.
 This project is written in [Clojure][2] (which leverages [Java][3]) and uses
 [JavaFX][4] to provide the user interface components. If you're not fond of
 Clojure or Java, you can blame [Miles][5]: he seems to actually _enjoy_ using
-Clojure and no matter times he says "never again" to Java, he just keeps coming
-back for more punishment.
+Clojure and no matter how many times he says "never again" to Java, he just
+keeps coming back for more punishment.
 
 At this time this project requires you to be running on a recent version of Java
-to do
-any development work on the project. So, if you have that set, download
+to do any development work on the project. So, if you have that set, download
 the "jmods" file for your platform and version of Java from the [Gluon][12]
 website. You will want to unpack that archive and place it somewhere permanent
 on your machine and note the path. Edit the `project.clj` file provided with
