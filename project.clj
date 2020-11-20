@@ -1,7 +1,7 @@
 (defproject windsorsolutions/xmltool "1.0"
   :description "A GUI tool for managing and visualizing XML data"
   :dependencies [[org.clojure/clojure "1.10.1"]
-                 [org.clojure/core.async "1.1.587"]
+                 [org.clojure/core.async "1.3.610"]
                  [org.clojure/tools.cli "1.0.194"]
                  [com.taoensso/timbre "4.10.0"]
                  [slingshot "0.12.2"]
@@ -9,7 +9,7 @@
   :plugins [[lein-jlink "0.3.0"]
             [lein-shell "0.5.0"]]
   :middleware [leiningen.jlink/middleware]
-  :jlink-module-paths ["C:\\Program Files\\AdoptOpenJDK\\javafx-jmods-11.0.2"]
+  :jlink-module-paths ["C:\\Program Files\\AdoptOpenJDK\\javafx-jmods-15.0.1"]
   :jlink-modules ["javafx.base" "javafx.controls" "javafx.fxml" "javafx.graphics"
                   "javafx.media""javafx.swing" "javafx.web" "java.sql"]
   :main windsorsolutions.xmltool.main
