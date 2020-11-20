@@ -28,7 +28,7 @@
 (def BAD-CHARACTERS #{16})
 
 (defn sax-parser-content-handler
-  "Returns a content handler for a SAXParser that will log errors."
+  "Returns a content handler for a SAXParser that Will log errors."
   [content-handler]
   (proxy [XMLHandler ErrorHandler][content-handler]
     (error [exception]
