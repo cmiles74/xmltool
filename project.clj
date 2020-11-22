@@ -5,13 +5,14 @@
                  [org.clojure/tools.cli "1.0.194"]
                  [com.taoensso/timbre "4.10.0"]
                  [slingshot "0.12.2"]
+                 [throttler "1.0.0"]
                  [org.fxmisc.richtext/richtextfx "0.10.5"]]
   :plugins [[lein-jlink "0.3.0"]
             [lein-shell "0.5.0"]]
   :middleware [leiningen.jlink/middleware]
   :jlink-module-paths ["C:\\Program Files\\AdoptOpenJDK\\javafx-jmods-15.0.1"]
   :jlink-modules ["javafx.base" "javafx.controls" "javafx.fxml" "javafx.graphics"
-                  "javafx.media""javafx.swing" "javafx.web" "java.sql"]
+                  "javafx.media""javafx.swing" "javafx.web" "java.sql" "java.xml" "jdk.javadoc"]
   :main windsorsolutions.xmltool.main
   :resource-paths ["resources"]
   :dist-target "dist"
