@@ -13,7 +13,8 @@
    [windsorsolutions.xmltool.xml :as xml]
    [windsorsolutions.xmltool.jfx :as jfx]
    [windsorsolutions.xmltool.editor :as editor]
-   [windsorsolutions.xmltool.ui :as ui])
+   [windsorsolutions.xmltool.ui :as ui]
+   [throttler.core :refer [throttle-chan throttle-fn]])
   (:import
    [windsorsolutions.xmltool.data TreeNode]
    [java.io File]
@@ -80,7 +81,9 @@
     (build-tree-attr tree-item (:attrs xml-node))
     tree-item))
 
-(defn build-tree-node
+(declare build-tree-node)
+
+(defn build-tree-node-bare
   "Builds a tree node for the provided node of XML data. If a message
   queue ('msg-q') is provided, progress messages will be provided while the tree
   is being constructed. If a tree queue
@@ -136,7 +139,7 @@
                                    parent
                                    tree-node)
           (if msg-q (queue-tree-message msg-q 0 (count (:content xml-node))))
-          (doall (map
+          (dorun (map
                   #(build-tree-node tree-node %1 :msg-q msg-q :tree-q tree-q)
                   (:content xml-node))))))
 
@@ -147,6 +150,9 @@
                                               {:attrs {:error
                                                        (str "Content not attached "
                                                             "to XML element")}}))))
+
+;; throttle our node building function to keep the app responsive
+(def build-tree-node (throttle-fn build-tree-node-bare 12000 :second))
 
 ;;
 ;; Functions for parsing the XML data
@@ -179,49 +185,48 @@
    (queue-info-message info-q (str "Loading the file at " (.getAbsolutePath file) "..."))
    (catch-non-fatal-xml-parse-errors
     info-q #(let [xml-tree (xml/parse-xml file)]
-              (build-tree-node (:root tree-table)
-                               xml-tree
-                               :msg-q count-q
-                               :tree-q tree-q)
-              (jfx/run (editor/set-text (:editor xml-editor)
-                                        @(future (xml/pretty-xml-out xml-tree (slurp file))))
+              (future (build-tree-node (:root tree-table)
+                                       xml-tree
+                                       :msg-q count-q
+                                       :tree-q tree-q))
+              (do (editor/set-text (:editor xml-editor)
+                                   @(future (xml/pretty-xml-out xml-tree (slurp file))))
                 (editor/scroll-to-top (:component xml-editor)))))
-    (catch #(= :fatal (:type %1)) exception
-      (queue-error-message info-q
-                           (str "Fatal error encountered while parsing line "
-                                (:line exception) " column " (:column exception) ": "
-                                (.getMessage (:exception exception))))
+   (catch #(= :fatal (:type %1)) exception
+     (queue-error-message info-q
+                          (str "Fatal error encountered while parsing line "
+                               (:line exception) " column " (:column exception) ": "
+                               (.getMessage (:exception exception))))
 
-      ;; strip out the bad characters
-      (sling/try+
-       (queue-info-message info-q
-                           (str "Attempting to scrub bad characters from the XML data"))
-       (catch-non-fatal-xml-parse-errors info-q
-        #(let [xml-tree (xml/parse-xml (xml/clean-xml file))]
-           (build-tree-node (:root tree-table)
-                            xml-tree
-                            :msg-q count-q
-                            :tree-q tree-q
-                            :initial true)
-                  (jfx/run (editor/set-text (:editor xml-editor)
-                                            @(future (xml/pretty-xml-out xml-tree
-                                                                         (slurp file))))
-                    (editor/scroll-to-top (:component xml-editor)))))
+     ;; strip out the bad characters
+     (sling/try+
+      (queue-info-message info-q
+                          (str "Attempting to scrub bad characters from the XML data"))
+      (catch-non-fatal-xml-parse-errors info-q
+       #(let [xml-tree (xml/parse-xml (xml/clean-xml file))]
+          (future (build-tree-node (:root tree-table)
+                                   xml-tree
+                                   :msg-q count-q
+                                   :tree-q tree-q
+                                   :initial true))
+          (do (editor/set-text (:editor xml-editor)
+                               @(future (xml/pretty-xml-out xml-tree (slurp file))))
+            (editor/scroll-to-top (:component xml-editor)))))
 
-       ;; well, now we know we really can't parse this file :-(
-       (catch #(= :fatal (:type %1)) exception
+      ;; well, now we know we really can't parse this file :-(
+      (catch #(= :fatal (:type %1)) exception
+        (queue-error-message info-q
+                             (str "Fatal error encountered while parsing line "
+                                  (:line exception) " column " (:column exception) ": "
+                                  (.getMessage (:exception exception)))))))
+   (catch Exception exception
+     (do (info exception)
          (queue-error-message info-q
-                              (str "Fatal error encountered while parsing line "
-                                   (:line exception) " column " (:column exception) ": "
-                                   (.getMessage (:exception exception)))))))
-    (catch Exception exception
-      (do (info exception)
-          (queue-error-message info-q
-                               (str "Couldn't open the file at " file ": "
-                                    (.getMessage exception)))
-          (queue-complete-message info-q
-                                  "Couldn't open the file, check the \"Console\" "
-                                  "tab for more details")))))
+                              (str "Couldn't open the file at " file ": "
+                                   (.getMessage exception)))
+         (queue-complete-message info-q
+                                 "Couldn't open the file, check the \"Console\" "
+                                 "tab for more details")))))
 
 ;;
 ;; Functions for handling the message queues
@@ -306,7 +311,6 @@
   the window visible. If no file path is provided, then a file chooser will be
   displayed. Returns a map with information about the window."
   [xml-file-path]
-
   (let [
         ;; get a handle on the incoming xml file
         xml-file (if xml-file-path (File. xml-file-path))
@@ -366,7 +370,7 @@
                              (ui/prompt-for-file @window
                                               (fn [file-in]
                                                 (jfx/remove-leaves (:root (:tree-table panel)))
-                                                (editor/set-text (:editor (:editor panel)) " ")
+                                                (editor/clear-text (:editor (:editor panel)))
                                                 (start-fn file-in)))))
 
     ;; add a handler for quitting the application
