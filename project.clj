@@ -18,9 +18,9 @@
   :dist-target "dist"
   :dist-version "1.0"
 
-  :aliases {"run"   ["do" "jlink" "init," "run"]
+  :aliases {"run"   ["do" "jlink" "init," "build-image," "run"]
             "clean" ["do" "jlink" "clean," "clean"]
-            "repl"  ["do" "jlink" "init," "repl"]
+            "repl"  ["do" "jlink" "init," "build-image," "repl"]
             "linux-icon" ["shell" "cp" "resources/rocket-256.png" "dist/linux64/xmltool.png"]
             "update-win-exe" ["shell" "bin/rcedit-x64.exe"
                               "${:dist-target}/${:dist-platform}/xmltool.exe"
