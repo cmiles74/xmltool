@@ -55,6 +55,8 @@
   (queue-message msg-q {:text text :type :complete}))
 
 (defn queue-tree-node-message
+  "Adds a message with a new child tree node for the provided parent node to the
+  specified queue."
   [msg-q parent-node child-node]
   (queue-message msg-q {:parent parent-node :node child-node}))
 
@@ -89,7 +91,7 @@
   is being constructed. If a tree queue
   ('tree-q') is provided, messages with new nodes for a tree/table view will
   be provided."
-  [parent xml-node & {:keys [msg-q initial tree-q]}]
+  [parent xml-node msg-q tree-q & {:keys [initial]}]
   ;; add our node to the count
   (if msg-q (queue-tree-message msg-q 1 0))
 
@@ -117,8 +119,8 @@
         (if msg-q (queue-tree-message msg-q 1 1))
         (build-tree-node tree-node
                          (:content xml-node)
-                         :msg-q msg-q
-                         :tree-q tree-q))
+                         msg-q
+                         tree-q))
 
       ;; node content is a vector
       (vector? (:content xml-node))
@@ -140,7 +142,7 @@
                                    tree-node)
           (if msg-q (queue-tree-message msg-q 0 (count (:content xml-node))))
           (dorun (map
-                  #(build-tree-node tree-node %1 :msg-q msg-q :tree-q tree-q)
+                  #(build-tree-node tree-node %1 msg-q tree-q)
                   (:content xml-node))))))
 
     ;; we don't know what this node is, add a "junk" node
@@ -187,8 +189,8 @@
     info-q #(let [xml-tree (xml/parse-xml file)]
               (future (build-tree-node (:root tree-table)
                                        xml-tree
-                                       :msg-q count-q
-                                       :tree-q tree-q))
+                                       count-q
+                                       tree-q))
               (do (editor/set-text (:editor xml-editor)
                                    @(future (xml/pretty-xml-out xml-tree (slurp file))))
                 (editor/scroll-to-top (:component xml-editor)))))
@@ -206,8 +208,8 @@
        #(let [xml-tree (xml/parse-xml (xml/clean-xml file))]
           (future (build-tree-node (:root tree-table)
                                    xml-tree
-                                   :msg-q count-q
-                                   :tree-q tree-q
+                                   count-q
+                                   tree-q
                                    :initial true))
           (do (editor/set-text (:editor xml-editor)
                                @(future (xml/pretty-xml-out xml-tree (slurp file))))
@@ -282,13 +284,13 @@
       (jfx/set-text (:progress-text panel) (:content message)))
     (recur (async/<! info-q))))
 
-  (defn handle-tree-node-queue
-    [tree-table tree-q]
-    (async/go-loop [message (async/<! tree-q)]
-      (if (:parent message)
-        (jfx/add-leaves (:parent message) (:node message))
-        (jfx/add-leaves (:root tree-table) (:node message)))
-      (recur (async/<! tree-q))))
+(defn handle-tree-node-queue
+  [tree-table tree-q]
+  (async/go-loop [message (async/<! tree-q)]
+    (if (:parent message)
+      (jfx/add-leaves (:parent message) (:node message))
+      (jfx/add-leaves (:root tree-table) (:node message)))
+    (recur (async/<! tree-q))))
 
 ;;
 ;; Functions to create the main window
