@@ -383,13 +383,6 @@
     (jfx/show-window @window
                      :pack false
                      :after-fn #(acquire-file-fn))
-
-
-    ;; workaround janky layout issue
-    (future
-      (Thread/sleep 500)
-      (jfx/run (.setHeight @window (dec (.getHeight @window)))))
-
     window))
 
 (defn xml-tool
