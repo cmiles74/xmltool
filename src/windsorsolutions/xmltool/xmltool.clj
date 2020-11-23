@@ -31,18 +31,21 @@
 
 (defn queue-info-message
   "Adds an info message to the provided queue, the message will contain the
-  provided text."
+  provided text. These messages appear in the 'Console' tab of the application."
   [msg-q text]
   (queue-message msg-q {:text text}))
 
 (defn queue-error-message
   "Adds an error message to the provided queue, the message will contain the
-  provided text."
+  provided text. These messages appear in the 'Console' tab of the application."
   [msg-q text]
   (queue-message msg-q {:text text :type :error}))
 
 (defn queue-tree-message
-  "Adds a tree building progress message to the provided queue."
+  "Adds a tree building progress message to the provided queue. These messages
+  are used to update the number of nodes parsed and remaining to be parsed, they
+  are used to update the progress bar in the main window as well as the text of
+  the progress bar."
   [msg-q nodes-added children-count]
   (queue-message msg-q {:type :tree-progress
                         :nodes-added nodes-added
@@ -50,11 +53,15 @@
 
 (defn queue-complete-message
   "Adds an 'processing complete' message to the provided queue, the message will
-  contain the provided text."
+  contain the provided text. When this message is received, the progress bar in
+  the main window is updated to indicate that parsing and loading is complete."
   [msg-q text]
   (queue-message msg-q {:text text :type :complete}))
 
 (defn queue-tree-node-message
+  "Adds a message with a new child tree node for the provided parent node to the
+  specified queue. These messages are used to populate the tree table in the main
+  window of the application."
   [msg-q parent-node child-node]
   (queue-message msg-q {:parent parent-node :node child-node}))
 
@@ -81,6 +88,7 @@
     (build-tree-attr tree-item (:attrs xml-node))
     tree-item))
 
+;; this function is called recursively and we're going to throttle it
 (declare build-tree-node)
 
 (defn build-tree-node-bare
@@ -89,7 +97,7 @@
   is being constructed. If a tree queue
   ('tree-q') is provided, messages with new nodes for a tree/table view will
   be provided."
-  [parent xml-node & {:keys [msg-q initial tree-q]}]
+  [parent xml-node msg-q tree-q & {:keys [initial]}]
   ;; add our node to the count
   (if msg-q (queue-tree-message msg-q 1 0))
 
@@ -117,8 +125,8 @@
         (if msg-q (queue-tree-message msg-q 1 1))
         (build-tree-node tree-node
                          (:content xml-node)
-                         :msg-q msg-q
-                         :tree-q tree-q))
+                         msg-q
+                         tree-q))
 
       ;; node content is a vector
       (vector? (:content xml-node))
@@ -140,7 +148,7 @@
                                    tree-node)
           (if msg-q (queue-tree-message msg-q 0 (count (:content xml-node))))
           (dorun (map
-                  #(build-tree-node tree-node %1 :msg-q msg-q :tree-q tree-q)
+                  #(build-tree-node tree-node %1 msg-q tree-q)
                   (:content xml-node))))))
 
     ;; we don't know what this node is, add a "junk" node
@@ -159,7 +167,6 @@
 ;;
 
 (defn catch-non-fatal-xml-parse-errors
-
   "Wraps a function that may through XML parsing errors in an error handler that
   will catch and log all non-fatal exceptions to the provided message queue."
   [msg-q work-fn]
@@ -187,8 +194,8 @@
     info-q #(let [xml-tree (xml/parse-xml file)]
               (future (build-tree-node (:root tree-table)
                                        xml-tree
-                                       :msg-q count-q
-                                       :tree-q tree-q))
+                                       count-q
+                                       tree-q))
               (do (editor/set-text (:editor xml-editor)
                                    @(future (xml/pretty-xml-out xml-tree (slurp file))))
                 (editor/scroll-to-top (:component xml-editor)))))
@@ -206,8 +213,8 @@
        #(let [xml-tree (xml/parse-xml (xml/clean-xml file))]
           (future (build-tree-node (:root tree-table)
                                    xml-tree
-                                   :msg-q count-q
-                                   :tree-q tree-q
+                                   count-q
+                                   tree-q
                                    :initial true))
           (do (editor/set-text (:editor xml-editor)
                                @(future (xml/pretty-xml-out xml-tree (slurp file))))
@@ -248,7 +255,8 @@
     (if (and (not= -1 last-count)
              (= 0 (- @node-count-atom (inc @children-count-atom))))
       (queue-complete-message
-       info-q (str "Document parsed with " (inc @children-count-atom) " nodes")))
+       info-q (format "Document parsing complete with %,d nodes"
+                      (inc @children-count-atom))))
 
     ;; update the progress bar + message every 1000 nodes
     (jfx/set-progress-indeterminate (:progress-bar panel))
@@ -257,24 +265,24 @@
           (jfx/set-progress (:progress-bar panel)
                             (float (/ @node-count-atom (inc @children-count-atom))))
           (jfx/set-text (:progress-text panel)
-                        (str "Processing document, added " @node-count-atom
-                             " of ~" (inc @children-count-atom) " nodes..."))))
+                        (format "Processing document, added  %,d  of ~%,d nodes..."
+                             @node-count-atom (inc @children-count-atom)))))
     (recur (async/<! count-q) (:children-count message))))
 
 (defn handle-info-queue
   "Starts an asynchronous loop that monitors the provided channel (info-q) and
   updates the provided information panel (info-q) of UI components."
   [panel info-q]
-  (async/go-loop [message (async/<! info-q)]
+  (async/go-loop [message (async/<! info-q) last-message nil]
     (cond
 
       ;; processing complete, update the progress bar
       (= :complete (:type message))
-      (do 
-          (jfx/set-progress (:progress-bar panel) 1)
-          ;; (jfx/add-text (:console panel) message)
+      (do (jfx/set-progress (:progress-bar panel) 1)
           (jfx/set-text (:progress-text panel)
-                        (if (:text message) (:text message) "Document processed!")))
+                        (if (:text message) (:text message) "Document processed!"))
+          (if (not= message last-message)
+            (jfx/add-text (:console panel) message)))
 
       ;; display the text message in the console area
       (:text message)
@@ -283,15 +291,15 @@
       ;; update the text next to the progress bar
       (= :status (:type message))
       (jfx/set-text (:progress-text panel) (:content message)))
-    (recur (async/<! info-q))))
+    (recur (async/<! info-q) message)))
 
-  (defn handle-tree-node-queue
-    [tree-table tree-q]
-    (async/go-loop [message (async/<! tree-q)]
-      (if (:parent message)
-        (jfx/add-leaves (:parent message) (:node message))
-        (jfx/add-leaves (:root tree-table) (:node message)))
-      (recur (async/<! tree-q))))
+(defn handle-tree-node-queue
+  [tree-table tree-q]
+  (async/go-loop [message (async/<! tree-q)]
+    (if (:parent message)
+      (jfx/add-leaves (:parent message) (:node message))
+      (jfx/add-leaves (:root tree-table) (:node message)))
+    (recur (async/<! tree-q))))
 
 ;;
 ;; Functions to create the main window
@@ -384,13 +392,6 @@
     (jfx/show-window @window
                      :pack false
                      :after-fn #(acquire-file-fn))
-
-
-    ;; workaround janky layout issue
-    (future
-      (Thread/sleep 500)
-      (jfx/run (.setHeight @window (dec (.getHeight @window)))))
-
     window))
 
 (defn xml-tool
