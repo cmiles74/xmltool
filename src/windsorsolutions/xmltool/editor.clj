@@ -7,10 +7,13 @@
    [taoensso.timbre.profiling :as profiling
     :refer (pspy pspy* profile defnp p p*)]
    [slingshot.slingshot :only [throw+ try+]]
+   [clojure.core.async :as async]
    [clojure.java.io :as io]
-   [windsorsolutions.xmltool.jfx :as jfx])
+   [windsorsolutions.xmltool.jfx :as jfx]
+   [throttler.core :refer [throttle-chan throttle-fn]])
   (:import
-   [java.util Collections]
+   [java.io File]
+   [java.util Collections Scanner]
    [java.util.regex Matcher Pattern]
    [javafx.beans.value ChangeListener]
    [org.fxmisc.flowless VirtualizedScrollPane]
@@ -124,15 +127,49 @@
     {:component (VirtualizedScrollPane. code-area)
      :editor code-area}))
 
+(defn lazy-reader [file]
+  "Returns a lazy reader that will read the contents of a file line-by-line"
+  (let [reader (Scanner. file)]
+    (letfn [(helper [rdr]
+              (lazy-seq
+               (if-let [line-next (.hasNextLine rdr)]
+                 (let [line-in (.nextLine rdr)]
+                   (if (not= -1 line-in)
+                     (cons (str line-in "\n") (helper rdr))))
+                 (do
+                   (info (str "Closing reader on " file))
+                   (.close rdr) nil))))]
+      (helper reader))))
+
 (defn clear-text
   "Clears the text in the editor."
   [editor]
-  (jfx/run (.replaceText editor 0 (.length (.getText editor)) " ")))
+  (info "Clearing editor window")
+  (jfx/run (.clear editor)))
+
+(defn append-text
+  [editor text]
+  (jfx/run
+    (.appendText editor text)))
 
 (defn set-text
   "Sets the provided text for the editor."
-  [editor text]
-  (jfx/run (.replaceText editor 0 (.length (.getText editor)) text)))
+  [info-fn info-q editor file]
+  (let [lines-read (atom 0)
+        update-fn #(info-fn info-q %1)
+        line-q (async/chan (async/buffer 500) nil #(warn %1))
+        append-fn (throttle-fn append-text 2 :second)
+        reader (partition 500 500 "" (take 10000 (lazy-reader file)))] ; max 10k lines
+
+    (async/go-loop [line (async/<! line-q)]
+      (append-fn editor line)
+      (recur (async/<! line-q)))
+
+    (doseq [lines reader]
+      (async/>!! line-q (apply str lines))
+      (swap! lines-read #(+ (count lines) %1)))
+    (if (= 10000 @lines-read)
+      (update-fn (str "Only displaying first 10,000 lines in the \"Source\" tab.")))))
 
 (defn scroll-to-top
   [component]
