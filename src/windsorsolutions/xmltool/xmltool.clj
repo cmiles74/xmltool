@@ -372,9 +372,6 @@
                           (if xml-file
                             (start-fn xml-file)))]
 
-    ;; add our stylesheet for the editor
-    ;;(jfx/run (editor/add-stylesheet scene))
-
     ;; add handlers for opening an new file
     (jfx/selection-handler (:open-menu-item panel)
                            (fn [event]

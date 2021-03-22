@@ -59,6 +59,7 @@
                                       :bottom (jfx/hbox [progress-bar progress-text]
                                                         :spacing 8 :insets (jfx/insets 5 5 5 5)))]
     (jfx/install-copy-handler (:component tree-table))
+    (jfx/install-copy-handler (:editor text-pane))
     (jfx/set-progress progress-bar 0)
     (.setEditable (:editor text-pane) false)
     {:tree-table tree-table

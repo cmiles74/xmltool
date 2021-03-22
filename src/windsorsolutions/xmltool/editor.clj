@@ -16,6 +16,7 @@
    [java.util Collections Scanner]
    [java.util.regex Matcher Pattern]
    [javafx.beans.value ChangeListener]
+   [javafx.scene.control ListView ScrollPane]
    [org.fxmisc.flowless VirtualizedScrollPane]
    [org.fxmisc.richtext CodeArea LineNumberFactory]
    [org.fxmisc.richtext.model StyleSpans StyleSpansBuilder]))
@@ -67,65 +68,17 @@
              "	</Order>",
              "</orders>"])
 
-(defn compute-highlighting
-  "Returns a set of StyleSpans that indicate how the content of the provided
-  'text' should be highlighted."
-  [text]
-  (let [matcher (.matcher XML-TAG text)
-        spans-builder (StyleSpansBuilder.)]
-    (loop [last-end 0
-           found (.find matcher)]
-      (if found
-        (do
-          (.add spans-builder [], (- (.start matcher) last-end))
-          (if (.group matcher "COMMENT")
-            (.add spans-builder #{"comment"} (- (inc (.end matcher)) (.start matcher)))
-            (if (.group matcher "ELEMENT")
-              (let [attr-text (.group matcher GROUP_ATTRIBUTES_SECTION)]
-                (.add spans-builder #{"tagmark"} (- (.end matcher GROUP_OPEN_BRACKET)
-                                                    (.start matcher GROUP_OPEN_BRACKET)))
-                (.add spans-builder #{"anytag"} (- (.end matcher GROUP_ELEMENT_NAME)
-                                                   (.end matcher GROUP_OPEN_BRACKET)))
-
-                (if (not (.isEmpty attr-text))
-                  (let [attr-matcher (.matcher ATTRIBUTES attr-text)]
-
-                    (loop [attr-last-end 0
-                           attr-found (.find attr-matcher)]
-                      (if attr-found
-                        (do (.add spans-builder [] (- (.start attr-matcher) attr-last-end))
-                            (.add spans-builder #{"attribute"}
-                                  (- (.end attr-matcher GROUP_ATTRIBUTE_NAME)
-                                     (.start attr-matcher GROUP_ATTRIBUTE_NAME)))
-                            (.add spans-builder #{"tagmark"}
-                                  (- (.end attr-matcher GROUP_EQUAL_SYMBOL)
-                                     (.end attr-matcher GROUP_ATTRIBUTE_NAME)))
-                            (.add spans-builder #{"avalue"}
-                                  (- (.end attr-matcher GROUP_ATTRIBUTE_VALUE)
-                                     (.end attr-matcher GROUP_EQUAL_SYMBOL)))))
-
-                      (if attr-found (recur (.end attr-matcher) (.find attr-matcher))
-                          (if (> (.length attr-text) attr-last-end)
-                            (.add spans-builder [] (- (.length attr-text) attr-last-end))))))
-                  (.add spans-builder #{"tagmark"}
-                        (- (.end matcher GROUP_CLOSE_BRACKET)
-                           (.end matcher GROUP_ATTRIBUTES_SECTION)))))))))
-
-      (if found (recur (.end matcher) (.find matcher))
-          (.add spans-builder [] (- (.length text) last-end))))
-    (.create spans-builder)))
-
 (defn editor
-  "Returns a new CodeArea that is embedded in a VirtualizedScrollPane."
+  "Returns a new list view that is embedded in a scroll pane."
   []
-  (let [code-area (CodeArea.)]
-    (.setParagraphGraphicFactory code-area (LineNumberFactory/get code-area))
-    (.addListener (.textProperty code-area)
-                  (reify ChangeListener
-                    (changed [this observable old-value new-value]
-                      (.setStyleSpans code-area 0 (compute-highlighting new-value)))))
-    {:component (VirtualizedScrollPane. code-area)
-     :editor code-area}))
+  (let [list-view (ListView.)
+        scroll-pane (ScrollPane. list-view)]
+    (.set (.fitToWidthProperty scroll-pane) true)
+    (.set (.fitToHeightProperty scroll-pane) true)
+    (.bind (.prefWidthProperty scroll-pane) (.widthProperty list-view))
+    (.bind (.prefHeightProperty scroll-pane) (.heightProperty list-view))
+    {:component scroll-pane
+     :editor list-view}))
 
 (defn lazy-reader [file]
   "Returns a lazy reader that will read the contents of a file line-by-line"
@@ -145,7 +98,7 @@
   "Clears the text in the editor."
   [editor]
   (info "Clearing editor window")
-  (jfx/run (.clear editor)))
+  (jfx/run (.remove (.getItems editor) 0 (.size (.getItems editor)))))
 
 (defn scroll-to-top
   [component]
@@ -154,17 +107,16 @@
 (defn append-text
   [editor text]
   (jfx/run
-    (.appendText editor text)
-    (scroll-to-top editor)))
+    (.add (.getItems editor) text)))
 
 (defn set-text
   "Sets the provided text for the editor."
   [info-fn info-q editor file]
   (let [lines-read (atom 0)
         update-fn #(info-fn info-q %1)
-        line-q (async/chan (async/buffer 500) nil #(warn %1))
-        append-fn (throttle-fn append-text 2 :second)
-        reader (partition 500 500 "" (take 10000 (lazy-reader file)))] ; max 10k lines
+        line-q (async/chan (async/buffer 1000) nil #(warn %1))
+        append-fn (throttle-fn append-text 10000 :second)
+        reader (lazy-reader file)]
 
     (async/go-loop [line (async/<! line-q)]
       (append-fn editor line)
@@ -172,10 +124,7 @@
 
     (doseq [lines reader]
       (async/>!! line-q (apply str lines))
-      (swap! lines-read #(+ (count lines) %1)))
-
-    (if (= 10000 @lines-read)
-      (update-fn (str "Only displaying first 10,000 lines in the \"Source\" tab.")))))
+      (swap! lines-read #(+ (count lines) %1)))))
 
 (defn add-stylesheet
   "Adds our XML CSS stylesheet to the provided scene."
