@@ -15,7 +15,7 @@
    [javafx.event EventHandler]
    [javafx.geometry Insets Orientation]
    [javafx.scene Group Scene]
-   [javafx.scene.control Label Menu MenuBar MenuItem ProgressBar ScrollPane
+   [javafx.scene.control Label ListView Menu MenuBar MenuItem ProgressBar ScrollPane
     ScrollPane$ScrollBarPolicy SplitPane Tab TabPane TabPane$TabClosingPolicy
     TreeTableCell TreeTableView TreeTableColumn TreeView TreeItem]
    [javafx.scene.image Image]
@@ -508,10 +508,33 @@
                              selected-text))
           (.setContent (Clipboard/getSystemClipboard) clipboard))))))
 
+(defn list-view-key-event-handler
+  "Returns a new KeyEventHandler that may be attached to a table and will
+  copy selected rows to the clipboard when 'Control+C' are pressed."
+  []
+  (reify
+    EventHandler
+    (handle [thix event]
+      (if (.match KEY-COPY event)
+        (let [list-view (.getSource event)
+              clipboard (ClipboardContent.)
+              selected-text (interpose
+                             "/t"
+                             (for [item (.getSelectedItems (.getSelectionModel list-view))]
+                               item))]
+          (.consume event)
+          (.putString clipboard
+                      (apply str
+                             selected-text))
+          (.setContent (Clipboard/getSystemClipboard) clipboard))))))
+
 (defn install-copy-handler
-  "Installs a handler on a table that will copy selected text to the clipboard."
-  [tableview]
-  (.setOnKeyPressed tableview (table-key-event-handler)))
+  "Installs a copy handler to copy text from a component to the clipboard"
+  [component]
+  (if (instance? TreeTableView component)
+    (.setOnKeyPressed component (table-key-event-handler)))
+  (if (instance? ListView component)
+    (.setOnKeyPressed component (list-view-key-event-handler))))
 
 (defn menu-item
   ([name]
