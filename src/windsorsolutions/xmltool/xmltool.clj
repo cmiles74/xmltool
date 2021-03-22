@@ -382,6 +382,8 @@
                                               (fn [file-in]
                                                 (jfx/remove-leaves (:root (:tree-table panel)))
                                                 (editor/clear-text (:editor (:editor panel)))
+                                                (reset! node-count 8)
+                                                (reset! children-count 0)
                                                 (start-fn file-in)))))
 
     ;; add a handler for quitting the application

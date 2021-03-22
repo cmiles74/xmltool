@@ -147,10 +147,15 @@
   (info "Clearing editor window")
   (jfx/run (.clear editor)))
 
+(defn scroll-to-top
+  [component]
+  (.scrollToPixel component 0.0 0.0))
+
 (defn append-text
   [editor text]
   (jfx/run
-    (.appendText editor text)))
+    (.appendText editor text)
+    (scroll-to-top editor)))
 
 (defn set-text
   "Sets the provided text for the editor."
@@ -168,12 +173,9 @@
     (doseq [lines reader]
       (async/>!! line-q (apply str lines))
       (swap! lines-read #(+ (count lines) %1)))
+
     (if (= 10000 @lines-read)
       (update-fn (str "Only displaying first 10,000 lines in the \"Source\" tab.")))))
-
-(defn scroll-to-top
-  [component]
-  (.scrollToPixel component 0.0 0.0))
 
 (defn add-stylesheet
   "Adds our XML CSS stylesheet to the provided scene."
