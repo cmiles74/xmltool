@@ -141,3 +141,4 @@ the [GNU General Public License][9].
 [10]: https://github.com/electron/rcedit
 [11]: https://github.com/electron/rcedit/blob/master/LICENSE
 [12]: https://gluonhq.com/products/javafx/
+
