@@ -196,9 +196,11 @@
                                        xml-tree
                                        count-q
                                        tree-q))
-              (do (editor/set-text (:editor xml-editor)
-                                   @(future (xml/pretty-xml-out xml-tree (slurp file))))
-                (editor/scroll-to-top (:component xml-editor)))))
+              (future (editor/set-text
+                       queue-info-message info-q
+                       (:editor xml-editor) file)
+                      ;(editor/scroll-to-top (:component xml-editor))
+                      )))
    (catch #(= :fatal (:type %1)) exception
      (queue-error-message info-q
                           (str "Fatal error encountered while parsing line "
@@ -216,9 +218,9 @@
                                    count-q
                                    tree-q
                                    :initial true))
-          (do (editor/set-text (:editor xml-editor)
-                               @(future (xml/pretty-xml-out xml-tree (slurp file))))
-            (editor/scroll-to-top (:component xml-editor)))))
+          (future (editor/set-text (:editor xml-editor) file)
+                  ;(editor/scroll-to-top (:component xml-editor))
+                  )))
 
       ;; well, now we know we really can't parse this file :-(
       (catch #(= :fatal (:type %1)) exception
@@ -371,9 +373,6 @@
                           (if xml-file
                             (start-fn xml-file)))]
 
-    ;; add our stylesheet for the editor
-    ;;(jfx/run (editor/add-stylesheet scene))
-
     ;; add handlers for opening an new file
     (jfx/selection-handler (:open-menu-item panel)
                            (fn [event]
@@ -381,6 +380,8 @@
                                               (fn [file-in]
                                                 (jfx/remove-leaves (:root (:tree-table panel)))
                                                 (editor/clear-text (:editor (:editor panel)))
+                                                (reset! node-count 0)
+                                                (reset! children-count 0)
                                                 (start-fn file-in)))))
 
     ;; add a handler for quitting the application
