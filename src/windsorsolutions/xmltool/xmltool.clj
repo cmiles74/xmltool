@@ -381,7 +381,7 @@
                                               (fn [file-in]
                                                 (jfx/remove-leaves (:root (:tree-table panel)))
                                                 (editor/clear-text (:editor (:editor panel)))
-                                                (reset! node-count 8)
+                                                (reset! node-count 0)
                                                 (reset! children-count 0)
                                                 (start-fn file-in)))))
 
