@@ -228,6 +228,7 @@
                              (str "Fatal error encountered while parsing line "
                                   (:line exception) " column " (:column exception) ": "
                                   (.getMessage (:exception exception)))))))
+   (catch Exception exception
      (do (info exception)
          (queue-error-message info-q
                               (str "Couldn't open the file at " file ": "
