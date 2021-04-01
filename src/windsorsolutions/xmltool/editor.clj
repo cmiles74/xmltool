@@ -7,7 +7,8 @@
    [taoensso.timbre.profiling :as profiling
     :refer (pspy pspy* profile defnp p p*)]
    [slingshot.slingshot :only [throw+ try+]]
-   [clojure.java.io :as io])
+   [clojure.java.io :as io]
+   [windsorsolutions.xmltool.jfx :as jfx])
   (:import
    [java.util Collections]
    [java.util.regex Matcher Pattern]
@@ -78,8 +79,10 @@
             (.add spans-builder #{"comment"} (- (inc (.end matcher)) (.start matcher)))
             (if (.group matcher "ELEMENT")
               (let [attr-text (.group matcher GROUP_ATTRIBUTES_SECTION)]
-                (.add spans-builder #{"tagmark"} (- (.end matcher GROUP_OPEN_BRACKET) (.start matcher GROUP_OPEN_BRACKET)))
-                (.add spans-builder #{"anytag"} (- (.end matcher GROUP_ELEMENT_NAME) (.end matcher GROUP_OPEN_BRACKET)))
+                (.add spans-builder #{"tagmark"} (- (.end matcher GROUP_OPEN_BRACKET)
+                                                    (.start matcher GROUP_OPEN_BRACKET)))
+                (.add spans-builder #{"anytag"} (- (.end matcher GROUP_ELEMENT_NAME)
+                                                   (.end matcher GROUP_OPEN_BRACKET)))
 
                 (if (not (.isEmpty attr-text))
                   (let [attr-matcher (.matcher ATTRIBUTES attr-text)]
@@ -89,17 +92,21 @@
                       (if attr-found
                         (do (.add spans-builder [] (- (.start attr-matcher) attr-last-end))
                             (.add spans-builder #{"attribute"}
-                                  (- (.end attr-matcher GROUP_ATTRIBUTE_NAME) (.start attr-matcher GROUP_ATTRIBUTE_NAME)))
+                                  (- (.end attr-matcher GROUP_ATTRIBUTE_NAME)
+                                     (.start attr-matcher GROUP_ATTRIBUTE_NAME)))
                             (.add spans-builder #{"tagmark"}
-                                  (- (.end attr-matcher GROUP_EQUAL_SYMBOL) (.end attr-matcher GROUP_ATTRIBUTE_NAME)))
+                                  (- (.end attr-matcher GROUP_EQUAL_SYMBOL)
+                                     (.end attr-matcher GROUP_ATTRIBUTE_NAME)))
                             (.add spans-builder #{"avalue"}
-                                  (- (.end attr-matcher GROUP_ATTRIBUTE_VALUE) (.end attr-matcher GROUP_EQUAL_SYMBOL)))))
+                                  (- (.end attr-matcher GROUP_ATTRIBUTE_VALUE)
+                                     (.end attr-matcher GROUP_EQUAL_SYMBOL)))))
 
                       (if attr-found (recur (.end attr-matcher) (.find attr-matcher))
                           (if (> (.length attr-text) attr-last-end)
                             (.add spans-builder [] (- (.length attr-text) attr-last-end))))))
                   (.add spans-builder #{"tagmark"}
-                        (- (.end matcher GROUP_CLOSE_BRACKET) (.end matcher GROUP_ATTRIBUTES_SECTION)))))))))
+                        (- (.end matcher GROUP_CLOSE_BRACKET)
+                           (.end matcher GROUP_ATTRIBUTES_SECTION)))))))))
 
       (if found (recur (.end matcher) (.find matcher))
           (.add spans-builder [] (- (.length text) last-end))))
@@ -117,10 +124,15 @@
     {:component (VirtualizedScrollPane. code-area)
      :editor code-area}))
 
+(defn clear-text
+  "Clears the text in the editor."
+  [editor]
+  (jfx/run (.replaceText editor 0 (.length (.getText editor)) " ")))
+
 (defn set-text
   "Sets the provided text for the editor."
   [editor text]
-  (.replaceText editor 0 (.length (.getText editor)) text))
+  (jfx/run (.replaceText editor 0 (.length (.getText editor)) text)))
 
 (defn scroll-to-top
   [component]

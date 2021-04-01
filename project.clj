@@ -1,25 +1,26 @@
 (defproject windsorsolutions/xmltool "1.0"
   :description "A GUI tool for managing and visualizing XML data"
   :dependencies [[org.clojure/clojure "1.10.1"]
-                 [org.clojure/core.async "1.1.587"]
+                 [org.clojure/core.async "1.3.610"]
                  [org.clojure/tools.cli "1.0.194"]
                  [com.taoensso/timbre "4.10.0"]
                  [slingshot "0.12.2"]
+                 [throttler "1.0.0"]
                  [org.fxmisc.richtext/richtextfx "0.10.5"]]
   :plugins [[lein-jlink "0.3.0"]
             [lein-shell "0.5.0"]]
   :middleware [leiningen.jlink/middleware]
-  :jlink-module-paths ["C:\\Program Files\\AdoptOpenJDK\\javafx-jmods-11.0.2"]
+  :jlink-module-paths ["C:\\Program Files\\AdoptOpenJDK\\javafx-jmods-15.0.1"]
   :jlink-modules ["javafx.base" "javafx.controls" "javafx.fxml" "javafx.graphics"
-                  "javafx.media""javafx.swing" "javafx.web" "java.sql"]
+                  "javafx.media""javafx.swing" "javafx.web" "java.sql" "java.xml" "jdk.javadoc"]
   :main windsorsolutions.xmltool.main
   :resource-paths ["resources"]
   :dist-target "dist"
   :dist-version "1.0"
 
-  :aliases {"run"   ["do" "jlink" "init," "run"]
+  :aliases {"run"   ["do" "jlink" "init," "build-image," "run"]
             "clean" ["do" "jlink" "clean," "clean"]
-            "repl"  ["do" "jlink" "init," "repl"]
+            "repl"  ["do" "jlink" "init," "build-image," "repl"]
             "linux-icon" ["shell" "cp" "resources/rocket-256.png" "dist/linux64/xmltool.png"]
             "update-win-exe" ["shell" "bin/rcedit-x64.exe"
                               "${:dist-target}/${:dist-platform}/xmltool.exe"
