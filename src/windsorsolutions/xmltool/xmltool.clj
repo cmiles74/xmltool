@@ -206,8 +206,10 @@
        info-q (str "Document parsed with " (inc @children-count-atom) " nodes")))
 
     ;; update the progress bar + message every 1000 nodes
+    (jfx/set-progress-indeterminate (:progress-bar panel))
     (if (= 0 (rem @node-count-atom 1000))
-      (do (jfx/set-progress (:progress-bar panel)
+      (do 
+          (jfx/set-progress (:progress-bar panel)
                             (float (/ @node-count-atom (inc @children-count-atom))))
           (jfx/set-text (:progress-text panel)
                         (str "Processing document, added " @node-count-atom
@@ -223,8 +225,9 @@
 
       ;; processing complete, update the progress bar
       (= :complete (:type message))
-      (do (jfx/set-progress (:progress-bar panel) 1)
-          ;;(jfx/add-text (:console panel) message)
+      (do 
+          (jfx/set-progress (:progress-bar panel) 1)
+          ;; (jfx/add-text (:console panel) message)
           (jfx/set-text (:progress-text panel)
                         (if (:text message) (:text message) "Document processed!")))
 
