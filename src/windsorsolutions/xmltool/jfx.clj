@@ -2,28 +2,22 @@
     windsorsolutions.xmltool.jfx
   (:require
    [taoensso.timbre :as timbre
-    :refer (log  trace  debug  info  warn  error  fatal  report
-                 logf tracef debugf infof warnf errorf fatalf reportf
-                 spy get-env log-env)]
-   [taoensso.timbre.profiling :as profiling
-    :refer (pspy pspy* profile defnp p p*)]
-   [slingshot.slingshot :only [throw+ try+]]
-   [clojure.core.async :as async])
+    :refer (debug info error warn)])
   (:import
-   [javafx.application Application Platform]
+   [javafx.application Platform]
    [javafx.beans.property ReadOnlyStringWrapper]
    [javafx.event EventHandler]
    [javafx.geometry Insets Orientation]
    [javafx.scene Group Scene]
    [javafx.scene.control Label ListView Menu MenuBar MenuItem ProgressBar ScrollPane
     ScrollPane$ScrollBarPolicy SplitPane Tab TabPane TabPane$TabClosingPolicy
-    TreeTableCell TreeTableView TreeTableColumn TreeView TreeItem]
+    TreeTableCell TreeTableView TreeTableColumn TreeItem]
    [javafx.scene.image Image]
    [javafx.scene.layout BorderPane HBox VBox Priority]
-   [javafx.scene.text Font Text TextFlow]
+   [javafx.scene.text Text TextFlow]
    [javafx.stage FileChooser FileChooser$ExtensionFilter StageStyle Stage]
    [javafx.util Callback]
-   [javafx.scene.input Clipboard ClipboardContent KeyCode KeyCodeCombination KeyCombination KeyEvent]
+   [javafx.scene.input Clipboard ClipboardContent KeyCode KeyCodeCombination KeyCombination]
    [javafx.scene.input KeyCombination$Modifier]))
 
 ;; key code representing copy, Control+C
@@ -34,16 +28,16 @@
 (defn development?
   "Returns true if we are running in the development environment."
   []
-  (if (and (resolve 'user/ENVIRONMENT)
+  (when (and (resolve 'user/ENVIRONMENT)
            (= :development (var-get (resolve 'user/ENVIRONMENT))))
     true))
 
 (defn exit
   "Exits the JavaFX Platform and the Java runtime."
   []
-  (if (not (development?))
-    (do (Platform/exit)
-        (System/exit 0))))
+  (when (not (development?))
+    (Platform/exit)
+    (System/exit 0)))
 
 (defn implicit-exit
   "If this is set to true, the JavaFX runtime will exit when the last
@@ -59,7 +53,7 @@
   (defonce force-toolkit-init (javafx.embed.swing.JFXPanel.))
 
   ;; don't exit on window close during development
-  (if (development?) (implicit-exit false)))
+  (when (development?) (implicit-exit false)))
 
 (defmacro run
   "Invokes the provided body in the context of the JavaFX application thread."
@@ -94,7 +88,7 @@
 (defn remove-leaves
   "Removes all of the leaves from the provided parent."
   [parent]
-  (if (seq (.getChildren parent))
+  (when (seq (.getChildren parent))
     (run (.clear (.getChildren parent)))))
 
 (defn tree-item
@@ -105,7 +99,7 @@
 
   ([data-object parent]
    (let [item (TreeItem. data-object)]
-     (if parent (add-leaves parent item))
+     (when parent (add-leaves parent item))
      item)))
 
 (defn string-wrapper-ro
@@ -177,7 +171,7 @@
     (.setShowRoot tree-table root-visible)
     (.setPlaceholder tree-table (label (str "Select \"Open\" from under the \"File\" "
                                             "menu to select an XML file to view.")))
-    (if root-expanded (.setExpanded root root-expanded))
+    (when root-expanded (.setExpanded root root-expanded))
     {:root root :component tree-table}))
 
 (defn insets
@@ -202,24 +196,24 @@
   "Returns a new ScrollPane and populates it with the supplied component."
   [component & {:keys [hbar-policy vbar-policy fit-to-width fit-to-height insets]}]
   (let [scroll-pane (ScrollPane. component)]
-    (if hbar-policy (.setHbarPolicy scroll-pane
+    (when hbar-policy (.setHbarPolicy scroll-pane
                                     (translate-scrollbar-policy hbar-policy)))
-    (if vbar-policy (.setVbarPolicy scroll-pane
+    (when vbar-policy (.setVbarPolicy scroll-pane
                                     (translate-scrollbar-policy vbar-policy)))
-    (if fit-to-width (.setFitToWidth scroll-pane fit-to-width))
-    (if fit-to-height (.setFitToHeight scroll-pane fit-to-height))
-    (if insets (.setPadding scroll-pane insets))
+    (when fit-to-width (.setFitToWidth scroll-pane fit-to-width))
+    (when fit-to-height (.setFitToHeight scroll-pane fit-to-height))
+    (when insets (.setPadding scroll-pane insets))
     scroll-pane))
 
 (defn text-pane
   "Returns a new TextFlow instance."
   [& {:keys [height width min-height min-width insets]}]
   (let [text-pane (TextFlow.)]
-    (if min-height (.setMinHeight text-pane min-height))
-    (if min-width (.setMinWidth text-pane min-width))
-    (if height (.setMaxHeight text-pane height))
-    (if width (.setMaxWidth text-pane width))
-    (if insets (.setPadding text-pane insets))
+    (when min-height (.setMinHeight text-pane min-height))
+    (when min-width (.setMinWidth text-pane min-width))
+    (when height (.setMaxHeight text-pane height))
+    (when width (.setMaxWidth text-pane width))
+    (when insets (.setPadding text-pane insets))
     text-pane))
 
 (defn group
@@ -274,10 +268,10 @@
   should be the divider index and the second it's requested position."
   [children-seq & {:keys [orientation div-positions]}]
   (let [split-pane (SplitPane.)]
-    (if div-positions (set-split-pane-divider-positions split-pane div-positions))
-    (if (= :vertical orientation)
+    (when div-positions (set-split-pane-divider-positions split-pane div-positions))
+    (when (= :vertical orientation)
       (.setOrientation split-pane Orientation/VERTICAL))
-    (if (seq children-seq)
+    (when (seq children-seq)
       (run (.addAll (.getItems split-pane) children-seq)))
     split-pane))
 
@@ -287,12 +281,12 @@
   provided then they are used for the margins of the panel."
   [& {:keys [top right bottom left center insets]}]
   (let [pane (BorderPane.)]
-    (if top (.setTop pane top))
-    (if right (.setRight pane right))
-    (if bottom (.setBottom pane bottom))
-    (if left (.setLeft pane left))
-    (if center (.setCenter pane center))
-    (if insets (.setPadding pane insets))
+    (when top (.setTop pane top))
+    (when right (.setRight pane right))
+    (when bottom (.setBottom pane bottom))
+    (when left (.setLeft pane left))
+    (when center (.setCenter pane center))
+    (when insets (.setPadding pane insets))
     pane))
 
 (defn scene
@@ -307,7 +301,7 @@
   (reify
     EventHandler
     (handle [this event]
-      (if (not (development?))
+      (when (not (development?))
         (exit)))))
 
 (defn image
@@ -327,12 +321,12 @@
   [& {:keys [title scene style width height exit-on-close icon]}]
   (let [handle (promise)]
     (run (let [stage (Stage. (if style style StageStyle/DECORATED))]
-           (if title (.setTitle stage title))
-           (if scene (.setScene stage scene))
-           (if width (.setMinWidth stage width))
-           (if height (.setMinHeight stage height))
-           (if exit-on-close (.setOnCloseRequest stage (exit-on-close-handler)))
-           (if icon (.add (.getIcons stage) icon))
+           (when title (.setTitle stage title))
+           (when scene (.setScene stage scene))
+           (when width (.setMinWidth stage width))
+           (when height (.setMinHeight stage height))
+           (when exit-on-close (.setOnCloseRequest stage (exit-on-close-handler)))
+           (when icon (.add (.getIcons stage) icon))
            (deliver handle stage)))
     handle))
 
@@ -343,9 +337,9 @@
   shown."
   [stage & {:keys [pack after-fn]}]
   (run
-    (if pack (.sizeToScene stage))
+    (when pack (.sizeToScene stage))
     (.show stage))
-  (if after-fn (after-fn))
+  (when after-fn (after-fn))
   stage)
 
 (defn close-window
@@ -369,8 +363,8 @@
   they will be used to create and add ExtensionFilter instances to the chooser."
   [& {:keys [title filters]}]
   (let [chooser (FileChooser. )]
-    (if title (.setTitle chooser title))
-    (if filters
+    (when title (.setTitle chooser title))
+    (when filters
       (if (sequential? filters)
         (run (.addAll (.getExtensionFilters chooser) filters))
         (run (.add (.getExtensionFilters chooser) filters))))
@@ -388,7 +382,7 @@
 (defn progress-bar
   [& {:keys [progress]}]
   (let [bar (ProgressBar. )]
-    (if progress (run (.setProgress bar progress)))
+    (when progress (run (.setProgress bar progress)))
     bar))
 
 (defn set-progress
@@ -428,9 +422,9 @@
   "Returns a new HBox containing the provided components."
   [components & {:keys [spacing insets]}]
   (let [box (HBox.)]
-    (if spacing (.setSpacing box spacing))
-    (if insets (.setPadding box insets))
-    (if components
+    (when spacing (.setSpacing box spacing))
+    (when insets (.setPadding box insets))
+    (when components
       (if (sequential? components)
         (run (.addAll (.getChildren box) components))
         (run (.add (.getChildren box) components))))
@@ -440,9 +434,9 @@
   "Returns a new VBox containing the provided components."
   [components & {:keys [spacing insets]}]
   (let [box (VBox.)]
-    (if spacing (.setSpacing box spacing))
-    (if insets (.setPadding box insets))
-    (if components
+    (when spacing (.setSpacing box spacing))
+    (when insets (.setPadding box insets))
+    (when components
       (if (sequential? components)
         (run (.addAll (.getChildren box) components))
         (run (.add (.getChildren box) components))))
@@ -452,8 +446,8 @@
   "Sets the preferred width and height of the component."
   [component & {:keys [width height]}]
   (run
-    (if width (.setPrefWidth component width))
-    (if height (.setPrefHeight component height)))
+    (when width (.setPrefWidth component width))
+    (when height (.setPrefHeight component height)))
   component)
 
 (defn tab
@@ -493,7 +487,7 @@
   (reify
     EventHandler
     (handle [thix event]
-      (if (.match KEY-COPY event)
+      (when (.match KEY-COPY event)
         (let [table-view (.getSource event)
               clipboard (ClipboardContent.)
               selected-text (interpose
@@ -515,7 +509,7 @@
   (reify
     EventHandler
     (handle [thix event]
-      (if (.match KEY-COPY event)
+      (when (.match KEY-COPY event)
         (let [list-view (.getSource event)
               clipboard (ClipboardContent.)
               selected-text (interpose
@@ -531,9 +525,9 @@
 (defn install-copy-handler
   "Installs a copy handler to copy text from a component to the clipboard"
   [component]
-  (if (instance? TreeTableView component)
+  (when (instance? TreeTableView component)
     (.setOnKeyPressed component (table-key-event-handler)))
-  (if (instance? ListView component)
+  (when (instance? ListView component)
     (.setOnKeyPressed component (list-view-key-event-handler))))
 
 (defn menu-item
@@ -541,7 +535,7 @@
    (menu-item name nil))
   ([name item-seq]
    (let [menu (MenuItem. name)]
-     (if item-seq
+     (when item-seq
        (if (sequential? item-seq)
          (.addAll (.getItems menu) item-seq)
          (.add (.getItems menu) item-seq)))
@@ -552,7 +546,7 @@
    (menu-item name nil))
   ([name item-seq]
    (let [menu (Menu. name)]
-     (if item-seq
+     (when item-seq
        (if (sequential? item-seq)
          (.addAll (.getItems menu) item-seq)
          (.add (.getItems menu) item-seq)))
@@ -574,6 +568,3 @@
      (handle [this action-event]
        (handler-fn action-event)))))
 
-(defn clear-tree
-  [tree-root]
-  (run ))

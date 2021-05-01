@@ -1,12 +1,5 @@
 (ns windsorsolutions.xmltool.ui
   (:require
-   [taoensso.timbre :as timbre
-    :refer (log  trace  debug  info  warn  error  fatal  report
-                 logf tracef debugf infof warnf errorf fatalf reportf
-                 spy get-env log-env)]
-   [taoensso.timbre.profiling :as profiling
-    :refer (pspy pspy* profile defnp p p*)]
-   [slingshot.slingshot :as sling]
    [windsorsolutions.xmltool.jfx :as jfx]
    [windsorsolutions.xmltool.editor :as editor]
    [windsorsolutions.xmltool.data :as data])
@@ -77,7 +70,7 @@
   file is selected, that file is provided to the start-processing-fn."
   [window start-processing-fn]
   (jfx/open-file window
-                 #(if %1
+                 #(when %1
                     (start-processing-fn %1))
                  :title "Select an XML File to Inspect"
                  :filters (jfx/file-chooser-extension-filter "XML Files" "*.xml")))
