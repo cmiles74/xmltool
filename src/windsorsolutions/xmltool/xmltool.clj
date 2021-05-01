@@ -1,24 +1,18 @@
-(ns windsorsolutions.xmltool.xmltool
+ (ns windsorsolutions.xmltool.xmltool
   (:require
    [taoensso.timbre :as timbre
-    :refer (log  trace  debug  info  warn  error  fatal  report
-                 logf tracef debugf infof warnf errorf fatalf reportf
-                 spy get-env log-env)]
-   [taoensso.timbre.profiling :as profiling
-    :refer (pspy pspy* profile defnp p p*)]
+    :refer (info  warn)]
    [slingshot.slingshot :as sling]
    [clojure.string :as cstring]
-   [clojure.java.io :as io]
    [clojure.core.async :as async]
    [windsorsolutions.xmltool.xml :as xml]
    [windsorsolutions.xmltool.jfx :as jfx]
    [windsorsolutions.xmltool.editor :as editor]
    [windsorsolutions.xmltool.ui :as ui]
-   [throttler.core :refer [throttle-chan throttle-fn]])
+   [throttler.core :refer [throttle-fn]])
   (:import
    [windsorsolutions.xmltool.data TreeNode]
-   [java.io File]
-   [javafx.scene.layout StackPane]))
+   [java.io File]))
 
 ;;
 ;; Functions for posting messages to our queues
@@ -94,12 +88,11 @@
 (defn build-tree-node-bare
   "Builds a tree node for the provided node of XML data. If a message
   queue ('msg-q') is provided, progress messages will be provided while the tree
-  is being constructed. If a tree queue
-  ('tree-q') is provided, messages with new nodes for a tree/table view will
-  be provided."
-  [parent xml-node msg-q tree-q & {:keys [initial]}]
+  is being constructed. If a tree queue ('tree-q') is provided, messages with
+  new nodes for a tree/table view will be provided."
+  [parent xml-node msg-q tree-q]
   ;; add our node to the count
-  (if msg-q (queue-tree-message msg-q 1 0))
+  (when msg-q (queue-tree-message msg-q 1 0))
 
   ;; our xml-node is in fact an xml-node
   (if (and (map? xml-node) (contains? xml-node :tag) (contains? xml-node :attrs)
@@ -122,7 +115,7 @@
         (queue-tree-node-message tree-q
                                  parent
                                  tree-node)
-        (if msg-q (queue-tree-message msg-q 1 1))
+        (when msg-q (queue-tree-message msg-q 1 1))
         (build-tree-node tree-node
                          (:content xml-node)
                          msg-q
@@ -146,7 +139,7 @@
           (queue-tree-node-message tree-q
                                    parent
                                    tree-node)
-          (if msg-q (queue-tree-message msg-q 0 (count (:content xml-node))))
+          (when msg-q (queue-tree-message msg-q 0 (count (:content xml-node))))
           (dorun (map
                   #(build-tree-node tree-node %1 msg-q tree-q)
                   (:content xml-node))))))
@@ -170,9 +163,10 @@
   "Wraps a function that may through XML parsing errors in an error handler that
   will catch and log all non-fatal exceptions to the provided message queue."
   [msg-q work-fn]
+  #_:clj-kondo/ignore
   (sling/try+ (work-fn)
               (catch #(not= :fatal (:type %1)) exception
-                (warn exception)
+               (warn exception)
                 (queue-error-message msg-q
                                      (str "Error of type \"" (name (:type exception))
                                           "\" encountered while parsing line "
@@ -197,10 +191,10 @@
                                        count-q
                                        tree-q))
               (future (editor/set-text
-                       queue-info-message info-q
                        (:editor xml-editor) file)
                       ;(editor/scroll-to-top (:component xml-editor))
                       )))
+   #_:clj-kondo/ignore
    (catch #(= :fatal (:type %1)) exception
      (queue-error-message info-q
                           (str "Fatal error encountered while parsing line "
@@ -212,30 +206,31 @@
       (queue-info-message info-q
                           (str "Attempting to scrub bad characters from the XML data"))
       (catch-non-fatal-xml-parse-errors info-q
-       #(let [xml-tree (xml/parse-xml (xml/clean-xml file))]
-          (future (build-tree-node (:root tree-table)
-                                   xml-tree
-                                   count-q
-                                   tree-q
-                                   :initial true))
-          (future (editor/set-text (:editor xml-editor) file)
-                  ;(editor/scroll-to-top (:component xml-editor))
-                  )))
+                                        #(let [xml-tree (xml/parse-xml (xml/clean-xml file))]
+                                           (future (build-tree-node (:root tree-table)
+                                                                    xml-tree
+                                                                    count-q
+                                                                    tree-q
+                                                                    :initial true))
+                                           (future (editor/set-text (:editor xml-editor) file))))
 
       ;; well, now we know we really can't parse this file :-(
+      #_:clj-kondo/ignore
       (catch #(= :fatal (:type %1)) exception
         (queue-error-message info-q
                              (str "Fatal error encountered while parsing line "
                                   (:line exception) " column " (:column exception) ": "
                                   (.getMessage (:exception exception)))))))
+   #_:clj-kondo/ignore
    (catch Exception exception
      (do (info exception)
          (queue-error-message info-q
                               (str "Couldn't open the file at " file ": "
                                    (.getMessage exception)))
          (queue-complete-message info-q
-                                 "Couldn't open the file, check the \"Console\" "
-                                 "tab for more details")))))
+                                 (str "Couldn't open the file, check the \"Console\" "
+                                      "tab for more details" "Couldn't open the file, check the \"Console\" "
+                                      "tab for more details"))))))
 
 ;;
 ;; Functions for handling the message queues
@@ -249,26 +244,25 @@
   (async/go-loop [message (async/<! count-q) last-count -1]
 
     ;; update our progress counts
-    (if (= :tree-progress (:type message))
-      (do (swap! node-count-atom #(+ %1 (:nodes-added message)))
-          (swap! children-count-atom #(+ %1 (:children-count message)))))
+    (when (= :tree-progress (:type message))
+      (swap! node-count-atom #(+ %1 (:nodes-added message)))
+      (swap! children-count-atom #(+ %1 (:children-count message))))
 
     ;; post completion message to the queue
-    (if (and (not= -1 last-count)
-             (= 0 (- @node-count-atom (inc @children-count-atom))))
+    (when (and (not= -1 last-count)
+               (= 0 (- @node-count-atom (inc @children-count-atom))))
       (queue-complete-message
        info-q (format "Document parsing complete with %,d nodes"
                       (inc @children-count-atom))))
 
     ;; update the progress bar + message every 1000 nodes
     (jfx/set-progress-indeterminate (:progress-bar panel))
-    (if (= 0 (rem @node-count-atom 1000))
-      (do 
-          (jfx/set-progress (:progress-bar panel)
-                            (float (/ @node-count-atom (inc @children-count-atom))))
-          (jfx/set-text (:progress-text panel)
-                        (format "Processing document, added  %,d  of ~%,d nodes..."
-                             @node-count-atom (inc @children-count-atom)))))
+    (when (= 0 (rem @node-count-atom 1000))
+      (jfx/set-progress (:progress-bar panel)
+                        (float (/ @node-count-atom (inc @children-count-atom))))
+      (jfx/set-text (:progress-text panel)
+                    (format "Processing document, added  %,d  of ~%,d nodes..."
+                            @node-count-atom (inc @children-count-atom))))
     (recur (async/<! count-q) (:children-count message))))
 
 (defn handle-info-queue
@@ -283,12 +277,12 @@
       (do (jfx/set-progress (:progress-bar panel) 1)
           (jfx/set-text (:progress-text panel)
                         (if (:text message) (:text message) "Document processed!"))
-          (if (not= message last-message)
+          (when (not= message last-message)
             (jfx/add-text (:console panel) message)))
 
       ;; display the text message in the console area
       (:text message)
-      (do (jfx/add-text (:console panel) message))
+      (jfx/add-text (:console panel) message)
 
       ;; update the text next to the progress bar
       (= :status (:type message))
@@ -326,7 +320,7 @@
   [xml-file-path]
   (let [
         ;; get a handle on the incoming xml file
-        xml-file (if xml-file-path (File. xml-file-path))
+        xml-file (when xml-file-path (xml-file-path (File. xml-file-path)))
 
         ;; we're going to track nodes and children as we add them
         count-q (async/chan (async/buffer 500) nil #(warn %1))
@@ -340,7 +334,8 @@
         tree-q (async/chan (async/buffer 500) nil #(warn %1))
 
         ;; main window panel
-        panel (ui/window-panel)
+        panel
+        (ui/window-panel)
 
         ;; our scene
         scene (jfx/scene (:component panel))
@@ -371,12 +366,12 @@
 
         ;; function to start processing input or prompt for a file
         acquire-file-fn (fn []
-                          (if xml-file
+                          (when xml-file
                             (start-fn xml-file)))]
 
     ;; add handlers for opening an new file
     (jfx/selection-handler (:open-menu-item panel)
-                           (fn [event]
+                           (fn [_]
                              (ui/prompt-for-file @window
                                               (fn [file-in]
                                                 (jfx/remove-leaves (:root (:tree-table panel)))
@@ -387,7 +382,7 @@
 
     ;; add a handler for quitting the application
     (jfx/selection-handler (:quit-menu-item panel)
-                           (fn [event] (jfx/close-window @window)))
+                           (fn [_] (jfx/close-window @window)))
 
     ;; display our window
     (jfx/show-window @window

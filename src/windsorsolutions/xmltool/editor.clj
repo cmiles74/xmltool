@@ -1,72 +1,13 @@
 (ns windsorsolutions.xmltool.editor
   (:require
    [taoensso.timbre :as timbre
-    :refer (log  trace  debug  info  warn  error  fatal  report
-                 logf tracef debugf infof warnf errorf fatalf reportf
-                 spy get-env log-env)]
-   [taoensso.timbre.profiling :as profiling
-    :refer (pspy pspy* profile defnp p p*)]
-   [slingshot.slingshot :only [throw+ try+]]
+    :refer (info  warn)]
    [clojure.core.async :as async]
-   [clojure.java.io :as io]
    [windsorsolutions.xmltool.jfx :as jfx]
-   [throttler.core :refer [throttle-chan throttle-fn]])
+   [throttler.core :refer [throttle-fn]])
   (:import
-   [java.io File]
-   [java.util Collections Scanner]
-   [java.util.regex Matcher Pattern]
-   [javafx.beans.value ChangeListener]
-   [javafx.scene.control ListView ScrollPane]
-   [org.fxmisc.flowless VirtualizedScrollPane]
-   [org.fxmisc.richtext CodeArea LineNumberFactory]
-   [org.fxmisc.richtext.model StyleSpans StyleSpansBuilder]))
-
-;; regular expressions for parsing data
-(def XML-TAG (Pattern/compile "(?<ELEMENT>(</?\\h*)(\\w+)([^<>]*)(\\h*/?>))|(?<COMMENT><!--[^<>]+-->)"))
-(def ATTRIBUTES (Pattern/compile "(\\w+\\h*)(=)(\\h*\"[^\"]+\")"))
-
-;; attribute symbols
-(def GROUP_OPEN_BRACKET 2)
-(def GROUP_ELEMENT_NAME 3)
-(def GROUP_ATTRIBUTES_SECTION 4)
-(def GROUP_CLOSE_BRACKET 5)
-(def GROUP_ATTRIBUTE_NAME 1)
-(def GROUP_EQUAL_SYMBOL 2)
-(def GROUP_ATTRIBUTE_VALUE 3)
-
-;; test data
-(def SAMPLE ["<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>",
-             "<!-- Sample XML -->",
-             "< orders >",
-             "	<Order number=\"1\" table=\"center\">",
-             "		<items>",
-             "			<Item>",
-             "				<type>ESPRESSO</type>",
-             "				<shots>2</shots>",
-             "				<iced>false</iced>",
-             "				<orderNumber>1</orderNumber>",
-             "			</Item>",
-             "			<Item>",
-             "				<type>CAPPUCCINO</type>",
-             "				<shots>1</shots>",
-             "				<iced>false</iced>",
-             "				<orderNumber>1</orderNumber>",
-             "			</Item>",
-             "			<Item>",
-             "			<type>LATTE</type>",
-             "				<shots>2</shots>",
-             "				<iced>false</iced>",
-             "				<orderNumber>1</orderNumber>",
-             "			</Item>",
-             "			<Item>",
-             "				<type>MOCHA</type>",
-             "				<shots>3</shots>",
-             "				<iced>true</iced>",
-             "				<orderNumber>1</orderNumber>",
-             "			</Item>",
-             "		</items>",
-             "	</Order>",
-             "</orders>"])
+   [java.util Scanner]
+   [javafx.scene.control ListView ScrollPane]))
 
 (defn editor
   "Returns a new list view that is embedded in a scroll pane."
@@ -80,14 +21,15 @@
     {:component scroll-pane
      :editor list-view}))
 
-(defn lazy-reader [file]
+(defn lazy-reader
   "Returns a lazy reader that will read the contents of a file line-by-line"
+  [file]
   (let [reader (Scanner. file)]
     (letfn [(helper [rdr]
               (lazy-seq
-               (if-let [line-next (.hasNextLine rdr)]
+               (if-let [_ (.hasNextLine rdr)]
                  (let [line-in (.nextLine rdr)]
-                   (if (not= -1 line-in)
+                   (when (not= -1 line-in)
                      (cons (str line-in "\n") (helper rdr))))
                  (do
                    (info (str "Closing reader on " file))
@@ -111,9 +53,8 @@
 
 (defn set-text
   "Sets the provided text for the editor."
-  [info-fn info-q editor file]
+  [editor file]
   (let [lines-read (atom 0)
-        update-fn #(info-fn info-q %1)
         line-q (async/chan (async/buffer 1000) nil #(warn %1))
         append-fn (throttle-fn append-text 10000 :second)
         reader (lazy-reader file)]
@@ -125,8 +66,3 @@
     (doseq [lines reader]
       (async/>!! line-q (apply str lines))
       (swap! lines-read #(+ (count lines) %1)))))
-
-(defn add-stylesheet
-  "Adds our XML CSS stylesheet to the provided scene."
-  [scene]
-  (.add (.getStylesheets scene) (.toExternalForm (io/resource "xml-highlighting.css"))))
