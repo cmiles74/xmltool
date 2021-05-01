@@ -30,8 +30,9 @@
   ;; initialize the JavaFX runtime
   (jfx/init))
 
-(defn lazy-reader [file]
+(defn lazy-reader
   "Returns a lazy reader that will read the contents of a file line-by-line"
+  [file]
   (let [reader (Scanner. file)]
     (letfn [(helper [rdr]
               (lazy-seq

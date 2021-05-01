@@ -2,24 +2,17 @@
     windsorsolutions.xmltool.xml
   (:require
    [taoensso.timbre :as timbre
-    :refer (log  trace  debug  info  warn  error  fatal  report
-                 logf tracef debugf infof warnf errorf fatalf reportf
-                 spy get-env log-env)]
-   [taoensso.timbre.profiling :as profiling
-    :refer (pspy pspy* profile defnp p p*)]
+    :refer (info  warn  error  fatal)]
    [slingshot.slingshot :as sling]
    [clojure.java.io :as io]
-   [clojure.xml :as xml]
-   [clojure.walk :as walk]
-   [clojure.string :as cstring])
+   [clojure.xml :as xml])
   (:import
-   [java.io ByteArrayInputStream ByteArrayOutputStream DataOutputStream File
+   [java.io ByteArrayInputStream ByteArrayOutputStream File
     InputStream PipedInputStream PipedOutputStream]
-   [javax.xml.parsers DocumentBuilderFactory SAXParserFactory SAXParser]
+   [javax.xml.parsers DocumentBuilderFactory SAXParserFactory]
    [javax.xml.transform OutputKeys TransformerFactory]
    [javax.xml.transform.dom DOMSource]
    [javax.xml.transform.stream StreamResult]
-   [javax.xml.xpath XPath XPathFactory]
    [java.io OutputStreamWriter StringWriter]
    [org.xml.sax ErrorHandler]
    [clojure.lang XMLHandler]))
@@ -98,7 +91,9 @@
       (try
         (doseq [char-in chars-in] (.write piped-out (int char-in)))
         (catch Exception e (info e))
-        (finally (try (.close piped-out)))))
+        (finally (try (.close piped-out)
+                      (catch Exception exception
+                        (warn exception))))))
     piped-in))
 
 (defn strip-whitespace-str
@@ -109,11 +104,13 @@
         reader (io/reader (ByteArrayInputStream. (.getBytes text)))]
     (try
       (doseq [line (line-seq reader)]
-        (if line (.write output (.trim line))))
+        (when line (.write output (.trim line))))
       (catch Exception e (info e))
       (finally (try
                  (.close output)
-                 (.flush output))))
+                 (.flush output)
+                 (catch Exception exception
+                   (warn exception)))))
     (.toString output)))
 
 (defn write-xml-str
