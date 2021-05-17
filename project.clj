@@ -66,3 +66,4 @@
               :jlink-image-path "dist/image/windows64"
               :aliases {"build-dist"
                         ["do" "build-image," "build-exe," "update-win-exe"]}}})
+
